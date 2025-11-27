@@ -1,0 +1,301 @@
+\chapter[]{IPsec}
+
+Before IP, the problem of connecting different local networks was not solved efficiently. Either leased lines or dial up connections were used, but they were not ideal.
+
+Nowadays, we have what's called TCP/IP communication, that combines the best of the two traditional solutions:
+\begin{itemize}
+    \item high data rates negotiable at a short notice through TCP mechanisms.
+    \item Cheaper than leased lines and more flexible than dial-up connections
+    \item approximately constant data rate
+\end{itemize}
+
+There is not a unique layer in which we should add security: it might be necessary to add security services at \textbf{different layers}. Different layers introduce different types of security.
+
+\paragraph{Application layer security}
+Implemented by each application, for example secure email. The disadvantages are:
+\begin{itemize}
+    \item We need to change each application
+    \item sometimes it's hard to implement and error prone
+    \item No protection for headers and lower-level data
+\end{itemize}
+
+\paragraph{TLS}
+Widely available, quite easy to implement (usually with libraries) and use. Disadvantages:
+\begin{itemize}
+    \item ...
+\end{itemize}
+
+\paragraph{Security at network level (L3)}
+
+\paragraph{Why do we need IPsec?}
+Because when IP was born, it was not designed with security in mind: it's connectionless, unreliable (packets can be lost or replayed); IP packets can be sniffed and spoofed. TCP guarantees that packets arrive in order; IP doesn't.
+
+IPsec is also useful to create a VPN, in particular it's possible with 3 approaches:
+\begin{itemize}
+    \item via private addressing: ... This approach is not so secure.
+    \item via protected routing (IP tunnel): the routers encapsulate the entire L3 packets as a payload inside another packet (e.g. IP in IP). But anybody that is able to sniff suck packets can read inside and see the real packet, so this approach also doesn't offer true security.
+    \item via cryptographic protection of the network packets (secure IP tunnel). This is actually the best solution.
+\end{itemize}
+
+Lez mar 11/11/2025
+
+\paragraph{IPsec local database(s)}
+We have SAD (SA Database) and SPD (Security Policy Database).
+
+\paragraph{SAD}
+\paragraph{SPD}
+
+\paragraph{Software modules in IPsec implementation}
+The AH/ESP is the core module handling IPsec data formats AH (Authentication Header) and ESP (Encapsulation Security Payload). It modifies incoming and outgoing packets. More precisely:
+\begin{itemize}
+    \item It decrypts and verifies incoming IPsec-protected packets and passes them back to the TCP/IP stack as normal packets.
+
+    \item It handles outgoing packets as specified in the SPD, for example pass the packed unchanged, encrypt, authenticate, or discard.
+\end{itemize}
+
+How IPsec processing works for sending IP packets:
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1\linewidth]{res/png/howipsecworks.png}
+    \caption{}
+    \label{}
+\end{figure}
+
+Both the sender and the receiver (Bob and Alice) have a SA that is used for traffic sent from Alice to Bob and one SA that's used for traffic sent from Bob to Alice. These SADs contain the SPI, which is like a pointer to each other's SA.
+
+\paragraph{IPsec modes of operation}
+Nowadays we use 2 modes for IPsec: transport mode and tunnel mode.
+
+In transport mode we install IPsec directly on the nodes: we achieve end-to-end communication. IPsec encapsulation is done by the source (sender) of the original IP packet, and the de-encapsulation is done by the destination (receiver) of the IP packet.
+
+In tunnel mode, IPsec encapsulation and de-encapsulation is done by \textbf{gateways} along the route between the source (sender) and destination (receiver), so IPsec is used GW-to-GW instead of end-to-end.
+
+There is also the host-to-gateway mode: it's still considered tunnel mode.
+
+\paragraph{Transport mode IPsec}
+IPv4 has a "protocol" field, that indicates which transport layer protocol is used. After protecting a packet with IPsec in transport mode, this field is changed, indicating that we're using IPsec (it will be updated to indicate AH or ESP). The remaining original IP header is kept.
+
+IPsec header (AH, ESP) is inserted between the original IP header and the original IP payload. If IPsec header is ESP, a trailer may be placed after the original IP payload and contains a MAC.
+\begin{itemize}
+    \item pro: computationally light
+    \item con: no protection of header variable fields
+\end{itemize}
+
+In the IPv4 header we have both fixed and variable fields (like TTL). The variable ones can be problematic if we use IPsec with transport mode (host to host): they can't be protected.
+
+\paragraph{Tunnel mode IPsec}
+In tunnel mode, we have host-to-gateway or gateway-to-gateway scenarios. It's used to create VPNs.
+
+The entire packet - including the IP header – is protected and inserted as a
+payload into a new IP packet. The additional header is called \textbf{tunnel}.
+\begin{itemize}
+    \item pro: protection of header variable fields, because none of them are discarded, and we can see how they change from a GW to the next one. The entire original packet is protected, because it's in the payload of the new packet.
+
+    \item con: computationally heavy
+\end{itemize}
+
+In both modes, AH protects the \textbf{entire} packet for integrity (except variable fields in the outmost IP header), while ESP doesn't protect the outmost IP header for integrity, but it has the advantage of providing \textbf{confidentiality} of the payload.
+
+\paragraph{AH}
+AH stands for Authentication Header. In its first version (RFC-1826), it's a mechanism for:
+\begin{itemize}
+    \item data integrity and sender authentication
+    \item compulsory support fo keyed-MD5
+    \item optional support of keyed-sha-1
+\end{itemize}
+
+In its second version:
+\begin{itemize}
+    \item data integrity, sender authentication and partial protection from replay attack
+    \item no encryption!
+    \item HMAC-MD5-96
+    \item HMAC-SHA-1-96: compute a normal SHA-1, then keep only the 96 leftmost bits (12 bytes) of the keyed digest (out of the 160 bits that SHA-1 produces). This is done to improve efficiency and reduce bandwidth, while keeping a fixed size. Since it's smaller than 160 bits, it's more prone to collision attacks, but it's still secure enough for message authentication.
+\end{itemize}
+
+The ICV (Identity Check Value) contains the MAC. The receiver extracts it. Also, the receiver re-computes the MAC and then compares it with the one extracted from the ICV. If they're equal, then the sender is authentic AND the IP packet is integral. If they're not equal, the sender is not the one we were expecting and/or the IP packet was manipulated.
+
+We know who the other party is when we exchange information for the first time and the authentication happens.
+
+The packets are numbered with AH, in order to avoid replay attacks. This is a secret number placed in the AH header, in the encapsulation phase.
+
+\section{ESP}
+ESP stands for Encapsulating Security Payload. The first version gave \textbf{only} confidentiality, and the base mechanism was DES-CBC, with other mechanisms possible.
+
+The second version provides also authentication, but not of the IP header, so the coverage is not equivalent to that of AH. The packet dimension is reduced and one SA is saved, because instead of using both AH and ESP, we only need ESP (for each IPsec header we need an additional SA), so we save a SA, which is very important.
+
+We can use ESP both in transport or in tunnel mode. In transport mode it's able to encrypt the payload, but the header remains in clear; in tunnel mode, both the payload and the original header are encrypted, but the resulting packet is larger, because we add a new IPv4 header (the tunnel header).
+
+\paragraph{ESP format}
+It's very simple: we have SPI (Security Parameter Index), sequence number and encrypted data.
+
+The ESP-DES-CBC format is a bit more complex: it adds an initialization vector, payload, then padding, a "padding length" field, a "payload type" and some authentication data (the ICV) that refers to all other fields: if there's any modification to any of the other fields, the re-computed MAC will be different from the one in ICV.
+
+Note: ESP is encrypt-then-MAC.
+
+Probably in the future AH will disappear and we'll only use ESP, because it's able to provide both encryption and authentication.
+
+\section{IPsec implementation}
+UI crypto-suites have been defined: VPN-A and VPN-B. They each indicate a whole suit of algorithms to be used.
+
+With ESP we can also use NULL algorithms: either for authentication or confidentiality, but not simultaneously. For example for a packet we might want to provide only confidentiality: we'll write NULL for the authentication algorithm field. Instead, if we only want authentication and not confidentiality, we place NULL in the confidentiality algorithm field.
+
+Then, we have the sequence number, which provides a partial protection from replay attacks. The minimum window is of 32 packets, although 64 is suggested. The creation of the window is mandatory for the sender but verification of sequence number is optional for the receiver, and it's announced during SA negotiation.
+
+An attacker can't modify the sequence number, because if he does, then the recomputed MAC will be different.
+
+when the sequence number $2^{32}-1$ is reached, a new SA should be negotiated. While this looks like a big number (and it is), the number of packets exchanged between 2 gateways for 2 big companies can reach this amount in a matter of days or months. At that point, the security association must be re-negotiated, which inevitably slows down the traffic.
+
+In IPsec there's no protection against cancellation of packets: if a packet gets lost, we don't find out.
+
+How the sliding window works: the receiver keeps a "window", which is a table, that contains info about the last 32 (or 64) received packets. This window says, for each packet, if it has been already received or not. This manages to avoid replay attacks. The window has to be limited, because if it were to register every packet, the memory required would blow up in the receiver. So, there's partial protection for reply attacks: we are protected only for packets that are inside the window.
+
+But the question is: what should we do with packets that arrive so late that the window has already moved past their expected arrival number? The answer is: we need a tradeoff between security and performance. If we accept the late packet, there's the risk that the packet is \textbf{replayed}. In fact, if the packet belongs to some very sensitive information, we should just reject it.
+
+\paragraph{IPsec v3}
+As we said, AH is optional, while ESP mandatory. This version of IPsec has support for single source multicast (not multi source). The sequence number is extended to 64, so the counter will reach $2^{64}-1$ before being reset, but to represent this number we still use 32 bits (the 32 least significant ones): when we reach $2^{32}$ we don't reset the counter, we simply move to the next group and continue.
+
+IPsec v3 enforces/suggests these algorithms:\\
+For integrity and authentication:
+\begin{itemize}
+    \item (MAY) HMAC-MD5-96
+    \item (MUST) HMAC-SHA-1-96
+    \item (SHOULD+) AES-XCBC-MAC-96
+    \item (MUST) NULL (only for ESP)
+\end{itemize}
+For confidentiality:
+\begin{itemize}
+    \item (MUST) NULL
+    \item (MUST–) TripleDES-CBC (must be supported but is discouraged)
+    \item (SHOULD+) AES-128-CBC
+    \item (SHOULD) AES-CTR
+    \item (SHOULD NOT) DES-CBC
+\end{itemize}
+For authenticated encryption (AEAD mode):
+\begin{itemize}
+    \item AES-CCM
+    \item AES-CMAC
+    \item ChaCha20 w/ Poly1305
+\end{itemize}
+For authentication and integrity:
+\begin{itemize}
+    \item HMAC-SHA-256-128
+    \item HMAC-SHA-384-192
+    \item HMAC-SHA-512-256
+\end{itemize}
+
+\section{End-to-end security}
+In this architecture, IPsec is implemented in the end nodes. The LAN, the gateway, or the WAN can have attackers, but we don't care because IPsec in the hosts is able to provide security.
+
+Pros:
+\begin{itemize}
+    \item traffic exchanged between the (end) nodes is protected
+    \item applications (running on end nodes) must not be modified
+\end{itemize}
+Cons:
+\begin{itemize}
+    \item management burden: IPsec must be installed on all the (end) nodes to be protected (difficult for numerous nodes)
+
+    \item End nodes must support cryptographic operations (difficult for mobile nodes, but also for \textbf{servers} handling numerous clients – crypto accelerator/VPN concentrator could be required or strong CPU). A VPN concentrator is a special-purpose appliance that acts as a terminator of IPsec tunnel: for remote access of single clients oar to create site-to-site VPN. It provides very high performance with respect to the costs (low).
+
+    \item Traffic monitoring is not possible (inside LAN) if IP packets are protected for confidentiality (ESP), because the IPsec is installed only on the hosts, not at the LAN level. So, if we have a malware (application level) in our IP packets, the intrusion detection system can't detect it! The malware will be protected by IPsec until it reaches the host, where it will wreak havoc. This happened a lot during the pandemic: a lot of people started using VPNs that escorted malware to their machine, and then they were working remotely for their company still using VPN, so the malware managed to travel to the company's systems.
+\end{itemize}
+
+\paragraph{Basic VPN}
+This solution is typically better than the previous one: instead of installing IPsec on each individual node, it's better to install it on the \textbf{gateways} (not routers, the gateway can secure the packets, not just transmit them). The gateways are very important devices that shouldn't be outsourced to someone else, or the security will be compromised.
+
+The gateway communicates with another gateway, establishing a SA in tunnel mode.
+
+Pros:
+\begin{itemize}
+    \item reduced management burden: IPsec needs to be installed (only) on GW, not on the (end) nodes
+    \item possible to perform traffic monitoring on LAN
+    \item if the GW must support numerous end nodes, it is possible to enhance its performance with crypto accelerator
+\end{itemize}
+Cons: no end-to-end protection, thus internal attacks are possible (sniff,
+modify, delete, replay, reorder IP packets, and so on). So we must absolutely make sure that the LAN is a trusted place if we use this approach.
+
+We have also a variant: end-to-end security with basic VPN. Here, we have IPsec in the gateways and also in the hosts. This should be used if our LAN is not a trusted place. This is the safest approach, but the costs are higer:\\
+Pros:
+\begin{itemize}
+    \item double defense line: either to double the level of protection or to divide the defenses. This is useful: integrity and authentication for packets (in LAN) - traffic monitoring is possible, confidentiality for packets sent over the WAN
+    \item end-to-end protection, internal attacks can be mitigated
+    \item traffic exchanged between the (end) nodes is protected
+    \item applications running on end nodes must not be modified
+\end{itemize}
+Cons:
+\begin{itemize}
+    \item crypto support: GW/end nodes might require crypto accelerators (because of the computational costs
+    \item some end nodes (e.g. mobile) might not support crypto operations; in this case we can't really adopt this architecture.
+    \item management burden, because of the IPsec on all nodes.
+\end{itemize}
+
+Finally, there is one more architecture that is widely used nowadays: secure gateway. This is often used because employees work on their laptop that they bring with them home, or even traveling in other countries, while still accessing the company's network.
+
+The employee's laptop has IPsec installed, and connects to the gateway of the company, through a tunnel-mode SA. The gateway will then perform authentication and authorization. This architecture is also exploited when an individual wants to escape limitations imposed by government or such entities (the employee can be anonymous): he connects to the gateway and the gateway connects to the company's network, so his name won't show up.
+
+The gateway is a personal VPN that allows the user to connect even from a remote country.
+
+A variant of this approach is the secure remote access: the remote hosts accesses the company's end host directly.
+
+\section{IPsec key management}
+This is very important: IPsec expects the exchange of symmetric keys. We could exchange the keys OOB (e.g. manually), or we could use Internet Security Association and Key Management Protocol (ISAKMP). This does not have a fixed key exchange method, but OAKLEY is used (?)
+
+\paragraph{Internet Key Exchange (IKE)}
+This is a very complex protocol that's a merge of two protocols: ISAKMP + OAKLEY. At a high level, it has 2 phases. In phase 1, the two parties establish a SA to protect the ISAKMP. In phase 2, we perform peer authentication: parties establish IPsec SAs, including the keys (derived from phase 1 keys).
+
+So the keys from phase 1 are not used directly to protect the traffic, but to obtain phase 2 keys, which are the ones used to protect the traffic. The phase 1 keys are used to instantiate a secure tunnel.
+
+\paragraph{IKE: operations}
+A host takes the initiative (it's called initiator): it establishes a secure channel with the responder host, and this is phase 1. Over this secure tunnel, in phase 2 we exchange the security associations, that are relevant to the traffic itself.
+
+IKE can provide non-repudiation of the IKE negotiation through a digital signature (note: NOT non-repudiation of the attacker, only of the IKE negotiation).
+
+IKE has been optimized and improved over time: now we have IKEv2, that reduces the amount of messages exchanged, for efficiency purposes.
+
+Final remark for the chapter: We can use IPsec only on closed-doors (?) where all hosts authenticate to each other, not on open networks like internet, because:
+\begin{enumerate}
+    \item We can't trust them.
+    \item It's problematic to exchange SA with all of them, it doesn't scale.
+\end{enumerate}
+For this reason, IPsec is used only in specialized purposes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+
+
+\clearpage

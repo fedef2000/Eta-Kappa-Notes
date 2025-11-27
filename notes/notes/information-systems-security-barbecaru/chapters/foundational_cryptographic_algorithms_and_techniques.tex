@@ -1,0 +1,481 @@
+\chapter[]{Foundational cryptographic algorithms and techniques}
+
+\section{Confidentiality - encryption}
+Basic terminology of cryptography:
+\begin{itemize}
+    \item Plaintext or cleartext: we will refer to it as \textbf{P}: it's the original message in clear.
+    \item Ciphertext: we will refer to it as C, it's the coded (encrypted / enciphered) message. 
+    \item Cipher / algorithm: technique for transforming plaintext to ciphertext
+    \item Key: Information used in a cipher to generate the ciphertext and to recover the plaintext.
+    \item Encipher (encrypt): converting plaintext to ciphertext.
+    \item Decipher (decrypt): recovering plaintext from ciphertext.
+    \item Cryptography: study of encryption principles and methods
+    \item Cryptoanalysis: study of principles / methods of \textbf{deciphering ciphertext without knowing the key}!
+    \item Cryptology: field of both cryptography and cryptanalysis.
+\end{itemize}
+The cleartext is recovered with the key, and every time we want to generate the encryption, we need the key.
+
+\paragraph{Symmetric cryptography}
+In symmetric cryptography, there's a single key K that must be kept secret (otherwise it's not usable). In order to protect the data, the sender gives the message (hello!) as input to the encryption algorithm, along with the secret key K. The encrypted message is then sent, and the receiver applies the algorithm using the \textbf{same key K} (this is why the algorithm is called symmetric) to decipher the message.
+
+This way, we achieve confidentiality, but not integrity by just encrypting. Because if an attacker modifies even one bit in the cipher text, the receiver decrypts and gets an unintelligible text, so we can't avoid data modification attacks this way.
+
+But there's a problem: how do we share securely the secret key among sender and receiver? Some ways:
+\begin{itemize}
+    \item Out of Band (OOB): they can meet in person or, in general, through a different communication channel.
+    \item Through a trusted third party. This is sometimes called \textbf{key distribution center}, and is widely used in some systems, for example in Kerberos.
+    \item by exploiting asymmetric cryptography: this is the most used way. It allows us to send a secret key to the receiver.
+\end{itemize}
+
+\paragraph{Cryptography's strength (Kerckhoffs's principle)}
+Kerckhoffs (a military) said that the important thing is not the secrecy of the design of the algorithm, but the \textbf{key} must be secret and \textbf{the algorithm should instead be as public as possible}, so that they can be widely analyzed and their possible weaknesses identified.
+
+\paragraph{Length of secret keys}
+The keys should be of adequate length, but why?\\
+What we have today is not \textbf{perfect security}, but \textbf{computational security}: there are no algorithms with sufficient computation to crack the decryption.
+
+If the encryption algorithm is well designed and the key K (N bits in length) is kept secret, then the only way to decipher is to use \textbf{brute force} attack, that requires on average a number of trials equal to $T\approx 2^N$. So, the longer the key, the more tries are required.
+
+Note that this is a \textbf{compromise}: in the past we had very slow CPUs, so they couldn't do $2^{40}$ tries in a reasonable time: a $2^{40}$ key was considered good. But then the computational power grew exponentially, and keeps growing: the key length must keep increasing over time inevitably.
+
+\paragraph{Symmetric algorithms}
+They're of 2 types:
+\begin{itemize}
+    \item Block algorithms, es. DES, 3DES, AES, etc. They divide the data in blocks of fixed length, each block is processed one at a time (typically each block is 64 or 128 bits): if the size of the data is not a multiple of block length, several bytes of padding must be added. The secret key can be re-used for different blocks
+
+    \item Stream algorithms: much faster than the block algorithms. they operate on flows of data. Their key must be \textbf{random} and \textbf{can't be reused}.
+\end{itemize}
+Nowadays, we use the AES (block) algorithm, where the key length can be of 3 different sizes depending on the context (depending on HOW LONG do we plan on protecting some data): 128 bits are sufficient for protecting data for some days. A key of 256 is for protecting data for the next decades.
+
+\paragraph{The XOR function}
+The XOR function is the ideal confusion operator: if the input is random then the output is random. It's a primitive operation available on all CPUs.
+
+The XOR is the inverse of itself: A xor B = Z, then Z xor B = A, and Z xor A = B. Other properties:
+\begin{itemize}
+    \item A xor 0 = A
+    \item A xor 1 = A'
+    \item A xor A = 0
+    \item A xor A' = 1
+\end{itemize}
+
+\paragraph{DES}
+DES was \textbf{the first symmetric cryptography algorithm}. To use it, we need to define modes. The key length was initially short: only 56 bits, and other bits (8 bits) were not used for additional security, but for parity, to obtain a 64 length key. Being a symmetric algorithm, it works by splitting the data in blocks.
+
+This algorithm was \textbf{designed to be efficient in hardware} (not software), because it required XOR for shift, and permutation, which are very easy operations to do in hardware.
+
+But the key length of just 56 bits was the major weakness: in 1999 a DES key was computed in only 22 hours and 15 minutes on a special computer (parallel hardware and brute force).
+
+So, another symmetrical algorithm was needed: Double DES. This performs DES twice: encrypting the already encrypted message:
+\[C = enc(K_2, enc(K_1,P))\]
+However, double application of encryption algorithms is subject to a known plaintext attack named \textbf{meet-in-the-middle}, which allows to discover the key and decrypt the data with \textbf{at most} $2^{n+1}$ attempts, if the keys are $N-$bit long.
+
+Basically, the computation time doubles (because we need to encrypt twice), but the strength of the effective key increases of just one bit (for DES it becomes $2\cdot 2^{56}=2^{57}$). Thus, the double version of encryption algorithms is never used.
+
+\paragraph{Triple DES}
+Triple DES is applying DES 3 times. It uses two of three 56 bit keys, and is usually applied in the EDE mode (for compatibility with DES when the 3 keys are the same).
+
+We don't have full strength, but it's way better than simple DES. It's just an adaptation: apply DES 3 times. Triple DES was not fast, it took too much time for some applications. Moreover, the strength of the key is not that good.
+
+For these reasons, a national competition (AES) was launched to replace the DES approach. There were 5 finalists:
+\begin{itemize}
+    \item MARS by IBM
+    \item RC6
+    \item Rijnadael
+    \item Serpent
+    \item Twofish
+\end{itemize}
+Candidates were allowed to look and criticize algorithms of others. In the year 2000, the winner was chosen, and it was Rijndael (AES), which became gradually adopted after 2010 instead of DES. Triple DES (3DES) is still used in some legacy systems, particularly in the financial industry for securing transactions in ATMs, point-of-sale systems, and electronic funds transfers (EFT).  It remains in use due to backward compatibility with older hardware and software, and because upgrading can be costly or impractical. The EMV standard for chip-enabled credit card transactions also relies on 3DES. However, its use is being actively phased out. The National Institute of Standards and Technology (NIST) has deprecated 3DES for new applications and prohibited its use after December 31, 2023, for encryption with three-key TDEA.
+
+\paragraph{Application of block algorithms - modes}
+There are different \textbf{modes} for applying block algorithms. Some (ECB, CBC) are for when the plaintext data has size greater than the algorithm's block size; others (padding, CFB, OFB) are when the plaintext to encode has size less than the algorithm's block size.
+
+\paragraph{ECB (Electronic Code Book) mode}
+Data is split in blocks (because it's still a mode for block algorithms). Each block is then \textbf{individually encrypted}. If one block is affected by some corruption, that won't affect the decryption of other blocks, because they're decrypted independently.
+
+But there are several problems from the security point of view, and for this reason ECB can't be used on \textbf{long} messages, it's only used with small messages.
+
+The problems are:
+\begin{itemize}
+    \item Swapping: if I'm an attacker i can swap 2 blocks, send them to the receiver, and when the receiver decrypts them he won't know a swapping occurred.
+
+    \item An attacker can compare a cipher text he intercepted from the wire to some cipher test he had in his DB. This is called \textbf{known-plaintext attack}, because the attacker needs to first create this DB starting from known plaintexts. For example, the first block can always be the same, presentation block.
+\end{itemize}
+To counter the memorization of blocks in a DB, there are randomization techniques (using an initialization vector that is random, unpredictable and as long as the block size, e.g. 128 bits for AES). We give this as input to the XOR function, the output gets encrypted with a key K, and this encrypted message is the C1 block. Then, this C1 block is used to encrypt the block C2, and so on.
+
+CBC: pros
+\begin{itemize}
+    \item No swapping attacks, because if a swap between two blocks occurs, the decrypted blocks will be corrupted.
+    
+    \item Even if an attacker knows the first block P1, it's not useful: there are no more identical blocks, because there is a randomization.
+\end{itemize}
+Cons:
+\begin{itemize}
+    \item Blocks can't be encrypted in parallel, but necessarily sequentially.
+
+    \item Error propagation: one error in transmission (e.g. in $C_i$) generates an error at the decryption of two blocks (i.e. in $P_i$ and $P_{i+1}$)
+    
+    \item \textbf{Malleability}: if an attacker inverts a specific bit, that exact bit will be also inverted in the plain text (this has to do with the XOR function).
+\end{itemize}
+
+\paragraph{Padding}
+As we said, if the last block of data is less then the block size, we need to add padding bits. There are many ways of choosing the padding bits. Depending on the amount of added padding, ---
+
+Even if plaintext is an exact multiple of the block, padding still must be added! Because the receiver can't know if the last portion was padded or not, so the technique we use is: \textbf{we always add padding}, and when the data is exactly the size of block length, we add a \textbf{full block of padding}. Some attacks exploited padding.
+
+Let's see how padding allows us to perform attacks. 
+
+
+CTS mode is to avoid adding padding. We encrypt and we get a block composed of head and tail. The tail is composed of how many bits we're missing in $P_n$. Then, the head (the part of the cipher text block) we take it and we put it in the last position. We then obtain $P_{n^*}$, which is of the right size.
+
+CTS is useful when we can't increase the size of the data with encryption.
+
+\paragraph{CTS - Example with CBC (better)}
+In order to encrypt a block, CBC needs the cipher text of the block before it. We again split the encrypted block into head and tail. The size of the tail will be the size we're missing in terms of bits.
+
+The last plain text block is filled with 0.
+
+\paragraph{CTR (Counter mode)}
+This is often very used. It allows to use a block algorithm as if it's a stream algorithm, without padding. A block algorithm works with blocks: one at a time. CTR algorithm allows us to encrypt N bits at a time (a group). We take a register, and we put a value in it, which has been calculated by a function (normally a concatenation function), a counter and the nonce, which is a random number.
+
+So here the block algorithms is not used to generate the block, but to generate the $K$ string, which is used to encrypt the data. The nonce must be generated by the sender but it must be sent to the receiver for the decryption! Both encryption and decryption can be done in parallel here.
+
+\paragraph{Counter mode - pros and cons}
+Pros:
+\begin{itemize}
+    \item Parallel encryption and decryption
+    \item no padding needed
+    \item random direct access to ciphertext
+    \item identical plaintext groups encrypt differently, so it's difficult to perform cryptoanalysis
+    \item no swapping attack: by exchanging two blocks $C_i$ and $C_{i+1}$, the obtained decrypted blocks $P_i$ and $P_{i+1}$ will be corrupted
+\end{itemize}
+Cons:
+\begin{itemize}
+    \item 
+\end{itemize}
+
+
+\paragraph{Stream algorithms}
+The one-time pad algorithm is an \textbf{ideal} algorithm: perfect real security (not  just computational security).
+
+We have in real algorithms pseudo-random generators: they're random for a while, but after that, keys repeat.
+
+The sender and the receiver have to agree on a function, typically the XOR. The seed generates a pseudo random key stream.
+
+We don't use RC4 anymore, it's old and not recommended.
+
+\paragraph{Salsa20 and ChaCha20}
+The ChaCha20 is an improvement of Salsa20. In order to generate the key function there's a key, nonce and counter. IETF has modified the ChaCha20 algorithm to make some distributions, but there's a limit of $256$ GB, if we want to encrypt bigger data we need to use the original definition of Bernstein.
+
+ChaCha20 is used by a Google and others.
+
+\paragraph{Symmetric cryptography: how many keys?}
+In symmetric cryptography, we need one key for each couple/group of users, for example Alice uses 1 key for communicating with Bob, another key for communicating with Another person, and there's also the possibility of defining a key for the communication between a group: Alice could use a single key $K_G$ for communications in the group $G$.
+
+But distributing all these keys is a problem in practice, especially in big groups. If we have $N$ parties, we'll have to exchange $\frac{N(N-1)}{2}$ keys. Either we distribute them OOB (out of the wire, by meeting at a coffee shop), or by means with a third party, or with a key exchange algorithm.
+
+\paragraph{Public key cryptography}
+This was a big change: the introduction of \textbf{asymmetric algorithms}. Until 1970's only symmetric cryptography was used. Then, public key cryptography was invented: we don't have a single key for a communication, but 2 different keys. Each user will have a \textbf{pair} of keys: one public $K_{pub}$ and one private $K_{pri}$. These keys can be used together.
+
+This method is good for confidentiality and allows us to create a digital signature (with hashing). But public key algorithms can't be used to encrypt large amount of data, because the processing load is high (and they won't work if we have a lot of data). So, public key algorithms are used just with small data.
+
+The data we encrypt are usually secret keys, or caches (i.e. summary of the data)
+
+\paragraph{Asymmetric cryptography}
+We achieve authenticity: only that person can use the private key (that's why we can do digital signatures). we also achieve integrity: if an attacker attacks the data will be unintelligible. Important: Not the whole data gets encrypted, but just its \textbf{summary}: the \textbf{digest}.
+
+\paragraph{RSA}
+RSA was born in 1978, initially named MIT algorithm, created by Ron Rivest, Adi Shamir and Leonard Adleman (RSA takes its name from the initials of these names).
+
+RSA generates the key in this way:
+\begin{itemize}
+    \item Two large prime numbers, P and Q are randomly chosen
+    \item ...
+\end{itemize}
+
+RSA can only encrypt data with size smaller than the module N.
+
+The complexity of the RSA operation depends on how many bits of the exponent are set to 1, that's why typically 65537 is used (a Fermat number).
+
+\paragraph{PKCS encryption encoding}
+We envelop our message: what we actually encrypt is the envelope, not our plaintext that we want to send.
+
+Nowadays, RSA, DSA and their variance are used, but they're not perfect algorithm: they can be broken by brute force attacks.
+
+symmetric algorithm: can be broken with.. ?
+asymmetric: can br broken with brute force
+
+To find out P and Q (factorization) is easy for the good guy, but very difficult for the attacker. Once you know P and Q you can know the prime exponent and so the private key.
+
+RSA was patented but the patent expired, so now we can use it without paying.
+
+There's a variant that uses the logarithm. This is good only to calculate digital signature, not for encryption.
+
+\paragraph{TWINKLE and TWIRL}
+When RSA was invented it was used by anybody for 20 years for digital signatures and confidentiality. Then, in 1999 professor Shamir presented the design idea of a hardware, called TWINKLE. It ran at a very high clock rate (10 GHz), and it could perform \textbf{factorization} very quickly. If implemented, this machine could break RSA. In 2003 they gave an estimation: it was possible to factorize RSA in 1 year at the cost of a few dozen million US dollars (or way less if several integers are to be factored simultaneously).
+
+So, finally RSA started becoming vulnerable. Any of these computationally secure algorithms will eventually become vulnerable, as we're now entering into the post-quantum era.
+
+
+
+
+Lez Tuesday 14 oct\\
+DH can be attacked with man in the middle attack, because there's no authentication. But it's resistant to sniffing, because even if the attacker reads A and B, if he doesn't have X and Y he can't decipher.
+
+\paragraph{Elliptic curve cryptography (ECC)}
+Instead of using modular arithmetic, the operations are executed on the surface of a 2D (elliptic) curve. This was done to avoid having keys too long. Because in elliptic curve, a short key (solving a discrete logarithm) is more complex to solve than a longer key in modular arithmetic. So it's possible to use shorter keys, about 1/10 of the length. This leads to better performance. Nowadays we have variants of algorithms that run on ECC, for example:
+\begin{itemize}
+    \item To create digital signatures: ECDSA.
+    \item To agree on a key: ECDH
+    \item To agree on a key with authentication: ECMQV
+    \item To distribute keys: ECIES
+\end{itemize}
+
+\paragraph{Future of asymmetric cryptography}
+As we said, we're moving in a post-quantum era, so asymmetric algorithms (DSA, RSA, etc.) will be dismissed, as new quantum computers will be able to easily \textbf{factorize} even big numbers. So factorization won't be effective anymore. This means in a few years, the algorithms and protocols need to be replaced.
+
+\section{Integrity - digest}
+Let's move from confidentiality to integrity. An attacker can intercept a message between two hosts and modify it, before it gets to the receiver. Let's understand how to avoid this problem.
+
+\paragraph{Digest}
+A \textbf{digest} is used to verify that the received message was the same that was sent (to achieve integrity). Normally, the receiver can't just look at a part of the data to ensure integrity, because a piece of data doesn't tell everything about the whole data. Instead, with this proposed method, the receiver only has to check the digest to ensure integrity of the whole message!
+
+The message digest is a \textbf{fixed-length} "summary" of the message $m$ to be protected (of any length, even GBs). It's calculated via a cryptographic hash function $h$. Such functions have a property: it's easy to compute the output $md=h(m)$, but very hard to invert.
+
+Hash functions map from a \textbf{huge} message space (source space) to a relatively small hash space (values).
+
+An ideal hash function must have the following properties:
+\begin{itemize}
+    \item Fast to compute the digest
+    \item Impossible or very difficult to invert (obtain $m$ out of $md$
+    \item Difficult to create "collisions", i.e. obtaining the same digest for two different messages.
+\end{itemize}
+In addition to these three properties, a good hash function is one such that changing a single bit of input results in entirely unpredictable output changes.
+
+\paragraph{How to use hash functions in practice to check integrity}
+Let's assume we want to protect the integrity of an object $A$ (file, document, email, etc.). We can first compute the hash file $md = h(A)$ and store the hash value ($md$) in a \textbf{secure} place. 
+
+Now, we can keep the data $A$ even in a non-secure place, because before using an object (file, document, etc.), the system re-computes a hash of the object and compares it to the stored hash. If these 2 hash values do not match, the object was probably changed in an unauthorized manner: no integrity.
+
+If the hash is not in a secure storage, the attacker can read the data, re-compute the hash and use his hash instead of ours.
+
+\paragraph{How does hash function compute output}
+Usually, these functions split the message $M$ in $N$ blocks, iteratively apply a base function $f$ to each block and another piece ($f$ takes 2 input and has 1 output). The final iteration produces the hash.
+
+Nowadays, algorithms from the SHA-2 family are commonly used.
+
+\paragraph{Collision}
+Collision is a situation where different messages have the same hash value. It's a problem because it means that the system compares $h(A)$ with a $h(A')$ and they coincide, so the system will think $A=A'$. So we want algorithms that avoid / minimize this problem.
+
+\paragraph{Digest length}
+It's important to avoid \textbf{aliasing} (collisions): $md_1 = h(m_1)$, $md_2 = h(m_2)$; if $m_1\neq m_2$, then we'd like to have $md_1\neq md_2$.
+
+If the algorithm is well designed and generates a digest of $N$ bits, then the probability of aliasing is:
+\[P_A\propto \frac{1}{2^{N}}\]
+So, digests with many bits are required, because statistical events are involved.
+
+Because of the birthday paradox, this probability to find a collision $P_A$ does not depend only on the inverse of $2^N$, but is actually \textbf{higher}.
+
+\paragraph{Birthday attack}
+After $2^{\frac{N}{2}}$ tries (hashes), an attacker finds a collision with probability $P_A \approx 50\%$. So, a $N$-bit digest algorithm is insecure if that many digests have been generated. For example, the SHA-1 algorithm has been broken February 2005.
+
+
+... parte persa ...
+
+
+\paragraph{MAC, MIC, MID}
+Nowadays, we find 3 frequent terms in security (in integrity and authentication): MIC, MAC, MID.
+
+To guarantee the integrity of messages, a \textbf{MIC} (Message Integrity Code) is added to the message. But just attaching a MIC to the data for integrity is not enough, because it doesn't assure authentication. So, the MIC is actually replaced by a \textbf{MAC} (Message Authentication Code), that ensures both integrity and authentication. Finally, to avoid replay attacks, a unique identifier can be added to the message: MID (Message ID).
+
+\paragraph{Authentication by means of keyed-digest}
+There are many ways of authenticate, one of them is the keyed-digest. The sender sends data and a keyed-digest to the receiver, obtained by hashing the sent data together with the shared secret key. The receiver re-calculates the keyed digest on his side, and check if it matches the keyed-digest sent by the sender. If they do, we achieved both integrity (because if the digest) and authentication. Other advantages are: only one operation (digest), and few additional data (keyed-digest, which is a fixed length depending on the hashing algorithm, because it's a digest).
+
+Note that the keyed-digest does not achieve non-repudiation: both the sender and the receiver have all the ingredients to compute the keyed digest, not only the sender. So the sender \textbf{can} deny in a court that he created a keyed-digest.
+
+Keyed-digest approaches have possible mistakes: An attacker could add a block (remember hash functions work on blocks) at the end of the data or before the data. Protections:
+\begin{itemize}
+    \item Inset in the digested data also the length of M
+    \item define $kd = H(K || M || K)$
+    \item Use a \textbf{standard} keyed-digest algorithm, e.g. HMAC (the best solution).
+\end{itemize}
+
+\paragraph{HMAC}
+HMAC is a standard algorithm used to calculate a keyed-digest. It uses internally a hash function $H$ and a key $K$. The algorithm works on blocks of size $B$ bytes. The output has size $L$ bytes, with $B>L$.
+
+If the length of the key is smaller than the length of output ($|K|<L$) we have 2 cases:
+\begin{itemize}
+    \item If $|K| > B$ then ...
+\end{itemize}
+
+Note that HMAC can use different hash functions, depending on how it's configured.
+
+\paragraph{CBC-MAC}
+CBC-MAC stands for Cipher Block Chaining Message Authentication Code, a cryptographic technique that uses a block cipher to create a tag that verifies a message's authenticity and integrity. It works by encrypting a message in blocks, where each block's encryption depends on the previous block's ciphertext. The final ciphertext block is then used as the message authentication code. 
+
+We split our data $M$ in $N$ blocks. Then we have the iterations of the CBC encrypt, with initialization vector IV equal to 0. We perform encryption with CBC mode: first we XOR, then we encrypt. $V_N$, the value of the encryption of the last block, will be our keyed-digest.
+
+CBC-MAC is good only with fixed-length messages. In other cases, we use CMAC.
+
+\paragraph{Integrity and secrecy}
+Often we want to achieve confidentiality (secrecy) and integrity, how can we combine them together? For confidentiality we should \textbf{encrypt the data} using key $K_1$, for integrity we can use a keyed-digest (MAC) with key $K_2$ (it's recommended to use 2 different keys of course).
+
+The question is how to combine these operations. The first option is \textbf{A\&E}: authenticate and encrypt. Assume we want to protect our data $p$. We encrypt it an we concatenate it with the MAC. It's not perfect, because the receiver must always decrypt before checking integrity (i.e. recompute the hash and compare it to the keyed-digest), so a possible DoS attack is open, because the receiver has to do a lot of operations. Moreover, it's been demonstrated that this approach may leak info about the plaintext. Nevertheless, SSH adopts this method.
+
+Let's now look at option 2: authenticate-then-encrypt (AtE). The sender first authenticates, then encrypts. He will send to the receiver only this cipher text. The receiver still is forced to decrypt before checking integrity (so DoS is still possible), but information leakage is not possible anymore. This approach is used by SSL and TLS.
+
+Option 3: encrypt-then-authenticate (EtA). The sender first encrypts the data with $K_1$, then he calculates the MAC on the encrypted data, using key $K_2$. This can avoid decryption in the receiver if the MAC is wrong (i.e. integrity is checked very quickly, before decryption). This approach is used by IPsec. This is the most secure mode, but we need to be very careful of the implementation errors: always include IV and algos in the MAC computation.
+
+Nowadays we have an alternative: \textbf{authenticated encryption} algorithms (joint AE). This algorithm performs one single operation that achieves both properties, not with 2 operations as we saw until now. Moreover, this algorithm only needs one key.
+
+\paragraph{RFC 5116 - authenticated encryption with associated data (AEAD)}
+In AEAD we only encrypt the payload, because the data in the header must remain in clear, otherwise the routers can't route the packet to the destination.
+
+The nonce protects from \textbf{replay} attacks. The tag is the keyed-digest.
+
+\paragraph{IGE (Infinite Garble Extension)}
+This is a mode that's not often used (only in didactic environments), AEAD is actually used.
+
+The main idea is to include a control block as the last block. If an attacker corrupts a block, the error propagates on all blocks until the control block. So the receiver just checks the control block to understand if the data has been mangled or not.
+
+ISO/IEC defines 6 standard modes to achieve authenticated encryption. One of these is GCM, which uses a short tag (128), because the algorithm authenticates and encrypts anyway with the key. GCM is defined for algorithms with 128-bit blocks, so we can't use it with 64-bit blocks algorithms for example.
+
+\paragraph{CCM}
+Another mode for AEAD is CCM: Counter-mode with CBC-MAC. It works by first creating the authentication tag of plaintext + associated data with CBC-MAC, then we encrypt separately plaintext and tag in CTR mode. This mode is widely used in security protocols, like TLS-1.3 and 802.11i (wi-fi security protocol).
+
+\section{Authentication + integrity - digital signatures and certificates}
+\paragraph{Digital signature}
+\begin{itemize}
+    \item The sender hashes the data he wants to send, to produce a message digest $md$.
+    \item The $md$ undergoes asymmetric encryption using the private key, and the result is a \textbf{digital signature}. This ensures authentication (the key is private, only the sender has it) and integrity (digest).
+    \item The receiver receives the data and re-computes the hash $md_R$, while decrypting the received digital signature (asymmetric decryption) to obtain $md_R$.
+    \item The receiver compares $md_R$ and $md_S$. If they're the same, then the data has not been modified and it comes from the right sender, because only the sender had that private key.
+\end{itemize}
+This method also achieves \textbf{non-repudiation}, because only the sender has that private key, so he can't deny of having created that digital signature.
+
+In practice, data and digital signature travel together, for example Adobe defined its own format to put together data and signature in a pdf. The sender is called \textbf{signer}, and the receiver \textbf{verifier}.
+
+An attacker could modify some bits in the sent data to alter the message digest calculated by the receiver, or he could modify some bits in the digital signature, to alter the result of the decryption. Also, he could alter the public key: if the public key is not the one associated with that private key, the decryption won't work the same.
+
+Another possible attack is making the receiver use a different hash function or a different decryption algorithm from the ones used by the sender.
+
+\paragraph{Digital vs handwritten signature}
+Digital signature = authentication + integrity, while handwritten signature = authentication.
+
+So, the digital signature is better, because it is tightly bound to the data, while the handwritten signature isn't, so one can add more text after a person has signed by hand.
+
+Note that each user does not have a digital signature, but just a \textbf{private key}, which can be used to generate an infinite amount of digital signatures (one for each different document).
+
+Also, digital signatures can't be copied, unlike the handwritten signature that can be screenshot and cut-paste anywhere by some malicious user. The digital signature only works on the specific document it was generated for.
+
+\paragraph{Public key certificate}
+Let's see how to bind a public key to an entity (person, node). In the case of a digital signature, it's mandatory, in order to achieve non-repudiation. There are some solutions:
+\begin{itemize}
+    \item out of band: you meet in person and you bind this way. But of course this doesn't scale to big groups.
+    
+    \item ?
+\end{itemize}
+The public key is like a \textbf{passport}, so they must be issued by some authority: the Certification Authority (CA). On large scale, public keys are handled by \textbf{public key infrastructures}. 
+
+The public keys have a limited lifetime, like real life passports. Normally these keys last for more or less 1 year.
+
+The CA can revoke one entity's key.
+
+\paragraph{Formats for public key certificates}
+There are formats but they're not all used, some are deprecated by now. Today, the X.509 is the most widely used. 
+
+\paragraph{Structure of a X.509v3 certificate (simplified)}
+There is a string called "distinguished name", that contains:
+\begin{itemize}
+    \item C (country), fixed
+    \item O (organization)
+    \item OU (organization unit)
+\end{itemize}
+This happens because x509 is a derivation from the x500 standard: in the x500 every object in internet should have a unique identifier. Then we have the CN (common name), and the email.
+
+Important: the email field is included in the certificate because in the certificate we must include the information that is meaningful to use it with applications.
+
+Then there are other extensions:
+\begin{itemize}
+    \item CRLDP
+    \item ...
+\end{itemize}
+
+\paragraph{PKI: Public-Key Infrastructure}
+Public certificates were invented by a student (Ralph Merkle?) in 1978 while he was working on his graduation thesis.
+
+PKI is a technical infrastructure (algorithms, etc.) but also administrative: issuing a certificate is important on a organizational level, and it's important to correctly identify the entity to which we're giving the public key.
+
+\paragraph{Certificate revocation}
+Any certificate can be revoked before its expiration date: either by request from the owner (for example if they stole it, like with the credit card), or autonomously by the issuer (for example if the key was wrongly issued, or if the key is used to provoke attacks).
+
+Attacks exploiting fake keys happen (fraudulent key attacks).
+
+Digital certificates have 2 big use cases:
+\begin{itemize}
+    \item to verify (?)
+    \item to authenticate
+\end{itemize}
+i.e. they can be used to demonstrate that a document is authentic and coming from the sender we expect.
+
+\paragraph{Revocation mechanisms}
+Nowadays, there are 2 revocation mechanisms, i.e. ways to know if a certificate has been revoked or not:
+\begin{itemize}
+    \item CRL (Certificate Revocation List): a big list of revoked certificates, that grows over time. This list itself is digitally signed, to ensure integrity (avoid its modification) and authenticity. The CRL is indicated in the certificate itself, in the CRLDP extension.
+    
+    \item OCSP (Online Certificate Status Protocol).
+\end{itemize}
+The Certificate Revocation List (CRL) can grow significantly in size, yet it is useful because it shows whether a certificate was valid or invalid \textbf{at any given point in time} we wish to verify. The CRL must be part of the certificate whenever it is utilized.
+
+The OCSP instead works this way: you make a query to a OCSP server sending a certificate, and it responds saying wether that certificate is \textbf{currently} valid, invalid, or it doesn't know. This is used if you need a fast answer, for example when you pay in the supermarket with your credit card, the POS makes this OCSP request to find out if your credit card is valid right now or not. Or, anytime we do an online transaction, we use OCSP.
+
+\paragraph{Structure of a X.509 CRL (simplified)}
+A X.509 CRL contains:
+\begin{itemize}
+    \item version
+    \item signature algorithm
+    \item issuer
+    \item thisUpdate: when was the current update published.
+    \item nextUpdate: when will the next CRL be issued. We should always download the latest CRL.
+    \item userCertificate (associated with a revocationDate). We have many such entries: one for each revoked certificate.
+    \item CA digital signature, important to trust the CRL!
+\end{itemize}
+Often, when we want to be 100\% sure about the validity of a certificate and we're using CRL, we check \textbf{twice}:
+\begin{itemize}
+    \item The first time we check the current CRL, and take a look at the nextUpdate field.
+    \item Then we wait until the next CRL is published, according to the nextUpdate field, and we check that next CRL. This is just to make sure that the certificate wasn't revoked shortly after the publication of the first CRL.
+\end{itemize}
+This shows why OCSP is more practical. But again, the tradeoff is that CRL is able to demonstrate that a certificate was valid/invalid in any moment in time, while OCSP only tells us the current validity.
+
+\paragraph{Typical scenario}
+The typical scenario for certificates is using OCSP in web to authenticate web servers. Bob, a user, connects to Alice's server in the web. In order for Bob to actually trust Alice, she needs to send her X.509 certificate. But in order for Bob to trust this certificate (that maybe he has never seen before), he wants to know \textbf{who issued it}. This is easy: the entity who issued the certificate is included in the certificate itself. This entity then uses its own certificate to authenticate, which points to another entity who issued it, and so on.
+
+This creates a \textbf{chain} of certificates, that ends when we reach a \textbf{root CA}: a highly trusted public entity that sits at the top of a public key infrastructure (PKI) hierarchy and issues digital certificates. These are the foundation of internet trust, and their certificates are pre-installed in our browsers and operating systems and must be simply trusted.
+
+So, when a certificate is checked, we go up a chain of certificates to verify that the other part is not lying, until we get to a certificate that is self-generated (root CA).
+
+Each authority that issues a certificates is called CA (Certificate Authority). What actually happens is: in order to validate Alice's certificate, Bob needs to see the public key of the CA above Alice, CA1, and in order to validate CA1 he will need the public key of CA2, until the root CA is reached.
+\paragraph{Performance}
+In the lab we already started measuring performances of algorithms. The performance does not depend on the RAM, but on the CPU, and especially on the architecture and instruction set: there are some optimized CPUs that perform these specific operations (encryption and decryption, for example RSA) way faster.
+
+Normally, on standard clients we don't have problems for performance. But on the \textbf{servers} that have to handle millions of clients simultaneously, it's a big matter. To speed up the servers, cryptographic accelerators (like some HSMs: Hardware Security Modules) were invented: special chips. Then, there are chips that perform other operations for the protocol itself: these are \textbf{special-purpose accelerators}.
+
+Which algorithms should we use, since there are many? There is the commercial national security algorithm suit (of USA) that recommends the following:
+\begin{itemize}
+    \item symmetric encryption: AES-256. if our application sends data in a channel with low bandwidth, it should use flow mode CTR, otherwise GCM 
+
+    \item if we need to hash, use SHA-384 (the one with shorter digest is considered too dangerous).
+
+    \item key agreement: ECDH (subject to key in the middle, not authenticated) and ECMQV (elliptic curve)
+
+    \item for digital signature: ECDSA (not just DSA)
+    
+    \item EC on the curve P-384.
+\end{itemize}
+If our app does not support these algorithms (i.e. if we have a legacy system), we should use:
+\begin{itemize}
+    \item DH-3072 for key agreement
+    \item RSA-3072 for key exchange and digital signature
+\end{itemize}
+New quantum-resistant algorithms  (post-quantum) are expected. AES is not affected by quantum computers, so we can expect to still keep using it.
+
+\clearpage

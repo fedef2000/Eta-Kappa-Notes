@@ -1,0 +1,12 @@
+course_code: "01TYMOV"
+course_name: "Information systems security"
+teacher: "Barbecaru, Gratiela Daniela"
+start_academic_year: 2025
+program_level: "master"
+program: "Computer engineering"
+language: "eng"
+formats:
+  - "latex"
+authors:
+  - "Ferrari, Federico"
+editors: []
