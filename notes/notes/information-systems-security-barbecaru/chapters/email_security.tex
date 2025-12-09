@@ -1,0 +1,125 @@
+\chapter{Email Security}
+
+\section{SMTP-Auth}
+SMTP is the protocol used to send email. SMTP-Auth is an extension of ESMTP to provide authentication. It authenticates a client to the server before accepting messages from it, which is useful against spamming.
+
+\textbf{Example 1: Authentication Failure}
+\begin{enumerate}
+    \item Start a connection request to the server \texttt{example.polito.it}.
+    \item The client asks to use the extended version of the SMTP protocol by sending the message \texttt{EHLO}.
+    \item The server responds with a positive message (code 250), indicating it speaks ESMTP and listing supported authentication methods.
+    \item The client requests a method (e.g., PLAIN) that is \textbf{not} supported by the server.
+    \item An error message is generated; authentication cannot be fulfilled.
+\end{enumerate}
+
+\textbf{Example 2: LOGIN Method Success}
+\begin{enumerate}
+    \item Start a connection request to the server \texttt{example.polito.it}.
+    \item The client sends \texttt{EHLO}.
+    \item The server responds (code 250) and lists supported methods: LOGIN, CRAM-MD5, DIGEST-MD5.
+    \item The client chooses the LOGIN method and authenticates.
+    \item \textbf{Note:} In LOGIN/PLAIN, the password is only encoded in BASE64. It is \textbf{not encrypted} and is visible if the channel is not protected by TLS.
+\end{enumerate}
+
+\section{ESMTP with TLS}
+By default, data travels in cleartext between client and server. To add confidentiality, TLS can be used via the \texttt{STARTTLS} command. This upgrades a normal SMTP channel to a secure SMTP-over-TLS channel.
+
+\begin{itemize}
+    \item The client sends the \texttt{STARTTLS} command.
+    \item A negotiation of security parameters (handshake) starts with the server.
+    \item In case of success, the ESMTP transaction continues inside the encrypted tunnel.
+    \item In case of failure (handshake fails or certificates are invalid):
+    \begin{itemize}
+        \item The client may quit (if configured to enforce security).
+        \item Or, the connection may fall back to cleartext (opportunistic TLS).
+    \end{itemize}
+\end{itemize}
+
+However, we cannot rely solely on channel security because we cannot guarantee that every node (hop) in the path is secure. We must protect the message itself (\textbf{End-to-End Security}).
+
+Which kind of protection do we want?
+\begin{itemize}
+    \item \textbf{Integrity:} The message has not been modified in transit.
+    \item \textbf{Authentication:} The receiver is able to identify the sender.
+    \item \textbf{Non-repudiation:} The \textbf{sender} (not the server) cannot deny having sent a message.
+    \item \textbf{Confidentiality:} The message should be readable only by the intended receiver.
+\end{itemize}
+
+\subsection{Secure MUA (Mail User Agent)}
+The email system was originally designed only for text messages. We must ensure backward compatibility. The infrastructure (MTA, MSA, etc.) cannot be easily modified, so the \textbf{MUA} must be modified to handle security.
+
+There are 4 main formats; they all require a secure MUA to verify or decrypt:
+\begin{itemize}
+    \item \textbf{Clear-signed:} The message body is in cleartext, but a digital signature is attached. Users without a secure MUA can still read the text (but cannot verify the signature).
+    \item \textbf{Signed (Opaque):} The message and signature are encapsulated together. A secure MUA is required to view the message.
+    \item \textbf{Encrypted (Enveloped):} The message is encrypted using a symmetric key, and that key is encrypted with the receiver's public key.
+    \item \textbf{Signed and Enveloped:} A combination of the above; achieves all 4 security services.
+\end{itemize}
+
+
+
+\subsection{The Cryptographic Process}
+\textbf{1. Canonicalization:}
+Put the email message in a standard format (e.g., standardizing line endings to CR/LF) before hashing. This ensures the hash is consistent regardless of the computer system.
+
+\textbf{2. Digital Signature (Integrity + Authentication + Non-Repudiation):}
+\begin{itemize}
+    \item Create a Hash (MIC - Message Integrity Code) of the message.
+    \item Encrypt the Hash with the \textbf{Private Key of the Sender}.
+    \item Send the message + the encrypted hash + the sender's certificate (containing the Public Key).
+\end{itemize}
+
+\textbf{3. Encryption (Confidentiality):}
+\begin{itemize}
+    \item A one-time \textbf{symmetric key} (Session Key) is generated.
+    \item The message is encrypted with this symmetric key.
+    \item The symmetric key is then encrypted with the \textbf{Public Key of the Receiver}.
+    \item The package sent contains: The Encrypted Message + The Encrypted Session Key.
+\end{itemize}
+
+\section{Secure Email Standards}
+\begin{itemize}
+    \item \textbf{IETF Standards:} PEM (Obsolete), MOSS (Obsolete), S/MIME (The current industry standard).
+    \item \textbf{Open Standards:} PGP (Pretty Good Privacy) and OpenPGP. Relies on a "Web of Trust" rather than centralized CAs.
+    \item \textbf{Legacy/Gov:} X.400.
+\end{itemize}
+
+\textbf{Why MIME?}
+RFC 822 (the original email standard) had limitations: designed only for English (7-bit ASCII) and had line-length limits.
+MIME (Multipurpose Internet Mail Extensions) was introduced to allow:
+\begin{itemize}
+    \item Non-ASCII character sets.
+    \item Binary attachments (images, video, etc.).
+    \item Multipart bodies (recursiveness).
+\end{itemize}
+This ability to send binary data is essential for sending cryptographic keys and signatures.
+
+\section{S/MIME (Secure/MIME)}
+S/MIME is the dominant standard for commercial email security. It is architecturally based on:
+\begin{itemize}
+    \item \textbf{CMS (Cryptographic Message Syntax):} Based on PKCS \#7.
+    \item \textbf{X.509v3:} For Certificates.
+\end{itemize}
+
+It supports algorithms for:
+\begin{itemize}
+    \item Hashing: SHA-256, SHA-512.
+    \item Signature: RSA, ECDSA.
+    \item Confidentiality: AES-128-CBC, AES-256-GCM.
+\end{itemize}
+
+\subsection{S/MIME Content Types}
+New MIME types map email components to security functions:
+\begin{itemize}
+    \item \texttt{multipart/signed}: Used for \textbf{Clear-signed} messages. The body is clear; the signature is a separate attachment.
+    \item \texttt{application/pkcs7-mime}: Used for \textbf{Enveloped} (encrypted) or \textbf{Opaque-signed} data. The content is a binary blob.
+    \item \texttt{application/pkcs7-signature}: The format for the detached signature in a multipart/signed message.
+\end{itemize}
+
+\section{Mail Retrieval (POP/IMAP)}
+Security is also required when retrieving mail from the server to the client.
+\begin{itemize}
+    \item \textbf{Authentication:} To ensure only the owner accesses the mailbox.
+    \item \textbf{Confidentiality:} Basic POP3 and IMAP send passwords in cleartext.
+\end{itemize}
+To fix this, SSL/TLS wrappers are used (POP3S on port 995, IMAPS on port 993) or STARTTLS extensions within the standard ports.
