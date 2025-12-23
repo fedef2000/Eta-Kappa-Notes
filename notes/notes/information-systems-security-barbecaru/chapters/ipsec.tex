@@ -55,12 +55,7 @@ The AH/ESP is the core module handling IPsec data formats AH (Authentication Hea
 
 How IPsec processing works for sending IP packets:
 
-\begin{figure}[!ht]
-    \centering
-    \includegraphics[width=1\linewidth]{res/png/howipsecworks.png}
-    \caption{}
-    \label{}
-\end{figure}
+\addfigure[]{png/howipsecworks.png}{0.6}
 
 Both the sender and the receiver (Bob and Alice) have a SA that is used for traffic sent from Alice to Bob and one SA that's used for traffic sent from Bob to Alice. These SADs contain the SPI, which is like a pointer to each other's SA.
 
@@ -259,43 +254,3 @@ Final remark for the chapter: We can use IPsec only on closed-doors (?) where al
     \item It's problematic to exchange SA with all of them, it doesn't scale.
 \end{enumerate}
 For this reason, IPsec is used only in specialized purposes.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-----------------------------------------------------------------------
-----------------------------------------------------------------------
-
-
-
-\clearpage
