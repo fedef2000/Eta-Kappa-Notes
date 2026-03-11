@@ -1,177 +1,197 @@
 \chapter[]{Foundational cryptographic algorithms and techniques}
+\section{Introduction}
+This chapter will cover the basic algorithms used in cybersecurity, and how they can ensure security properties like confidentiality, authentication or integrity.
+These are some terms that must be known:
+\begin{description}
+    \item[Plaintext ($P$):] The original, readable message.
+    \item[Ciphertext ($C$):] The coded (enciphered or encrypted) message.
+    \item[Cipher or Algorithm:] The specific technique used to transform plaintext into ciphertext.
+    \item[Key:] The essential information used by the cipher to encrypt the plaintext and decrypt the ciphertext.
+    \item[Encrypt or Encipher:] The process of converting $P$ to $C$.
+    \item[Decrypt or Decipher:] The process of recovering $P$ from $C$.
+\end{description}
 
 \section{Confidentiality - encryption}
-Basic terminology of cryptography:
+Encryption is a process used to ensure confidentiality of a message. The encryption algorithms can be divided into 2 categories: symmetric and asymmetric.
+
+\subsection{Symmetric cryptography}
+In symmetric cryptography, there is a single shared key $K$ between the two parties: the sender who encrypts the data and the receiver who decrypts it. This key must be kept secret. To protect the data, the sender inputs the plaintext message into the encryption algorithm along with the secret key $K$.
+The encrypted message (ciphertext) is then transmitted, and the receiver applies the decryption algorithm using the \textbf{same key $K$} to recover the original message.
+
+Note that this mechanism primarily ensures \textit{confidentiality}—meaning only those who possess the key can read the message. It does not inherently guarantee \textit{integrity}. If an attacker intercepts and modifies the ciphertext in transit, the receiver may not be able to detect the tampering (the fact that the message might decrypt into garbled nonsense is not a strict or secure definition of integrity).
+A major advantage of symmetric encryption is that it is computationally very fast compared to asymmetric encryption.
+
+Since the key must be shared between parties, a primary challenge that arises is how to distribute it securely. Common methods include:
 \begin{itemize}
-    \item Plaintext or cleartext: we will refer to it as \textbf{P}: it's the original message in clear.
-    \item Ciphertext: we will refer to it as C, it's the coded (encrypted / enciphered) message. 
-    \item Cipher / algorithm: technique for transforming plaintext to ciphertext
-    \item Key: Information used in a cipher to generate the ciphertext and to recover the plaintext.
-    \item Encipher (encrypt): converting plaintext to ciphertext.
-    \item Decipher (decrypt): recovering plaintext from ciphertext.
-    \item Cryptography: study of encryption principles and methods
-    \item Cryptoanalysis: study of principles / methods of \textbf{deciphering ciphertext without knowing the key}!
-    \item Cryptology: field of both cryptography and cryptanalysis.
-\end{itemize}
-The cleartext is recovered with the key, and every time we want to generate the encryption, we need the key.
-
-\paragraph{Symmetric cryptography}
-In symmetric cryptography, there's a single key K that must be kept secret (otherwise it's not usable). In order to protect the data, the sender gives the message (hello!) as input to the encryption algorithm, along with the secret key K. The encrypted message is then sent, and the receiver applies the algorithm using the \textbf{same key K} (this is why the algorithm is called symmetric) to decipher the message.
-
-This way, we achieve confidentiality, but not integrity by just encrypting. Because if an attacker modifies even one bit in the cipher text, the receiver decrypts and gets an unintelligible text, so we can't avoid data modification attacks this way.
-
-But there's a problem: how do we share securely the secret key among sender and receiver? Some ways:
-\begin{itemize}
-    \item Out of Band (OOB): they can meet in person or, in general, through a different communication channel.
-    \item Through a trusted third party. This is sometimes called \textbf{key distribution center}, and is widely used in some systems, for example in Kerberos.
-    \item by exploiting asymmetric cryptography: this is the most used way. It allows us to send a secret key to the receiver.
+    \item \textbf{Out of Band (OOB):} The parties meet in person or exchange the key through a completely different, secure communication channel.
+    \item \textbf{Trusted Third Party:} Also known as a \textbf{Key Distribution Center (KDC)}. This entity securely issues keys to both parties and is widely used in enterprise protocols like Kerberos.
+    \item \textbf{Asymmetric Cryptography:} This is the most common modern approach. It uses slower, public-key cryptography specifically to securely transmit the symmetric secret key to the receiver before switching to the faster symmetric cipher for the actual data.
 \end{itemize}
 
-\paragraph{Cryptography's strength (Kerckhoffs's principle)}
-Kerckhoffs (a military) said that the important thing is not the secrecy of the design of the algorithm, but the \textbf{key} must be secret and \textbf{the algorithm should instead be as public as possible}, so that they can be widely analyzed and their possible weaknesses identified.
-
-\paragraph{Length of secret keys}
-The keys should be of adequate length, but why?\\
-What we have today is not \textbf{perfect security}, but \textbf{computational security}: there are no algorithms with sufficient computation to crack the decryption.
-
-If the encryption algorithm is well designed and the key K (N bits in length) is kept secret, then the only way to decipher is to use \textbf{brute force} attack, that requires on average a number of trials equal to $T\approx 2^N$. So, the longer the key, the more tries are required.
-
-Note that this is a \textbf{compromise}: in the past we had very slow CPUs, so they couldn't do $2^{40}$ tries in a reasonable time: a $2^{40}$ key was considered good. But then the computational power grew exponentially, and keeps growing: the key length must keep increasing over time inevitably.
-
-\paragraph{Symmetric algorithms}
-They're of 2 types:
+Another critical factor is the length of the key. Kerckhoffs's principle states that a cryptographic system should be secure even if everything about the system, except the key, is public knowledge. Therefore, if:
 \begin{itemize}
-    \item Block algorithms, es. DES, 3DES, AES, etc. They divide the data in blocks of fixed length, each block is processed one at a time (typically each block is 64 or 128 bits): if the size of the data is not a multiple of block length, several bytes of padding must be added. The secret key can be re-used for different blocks
-
-    \item Stream algorithms: much faster than the block algorithms. they operate on flows of data. Their key must be \textbf{random} and \textbf{can't be reused}.
+    \item The key is kept secret and managed only by trusted parties.
+    \item The key is sufficiently long.
 \end{itemize}
-Nowadays, we use the AES (block) algorithm, where the key length can be of 3 different sizes depending on the context (depending on HOW LONG do we plan on protecting some data): 128 bits are sufficient for protecting data for some days. A key of 256 is for protecting data for the next decades.
+Then the encryption algorithm itself can (and should) be made public. Public algorithms benefit from widespread academic scrutiny, allowing vulnerabilities to be identified and patched. If an algorithm is mathematically sound, the only viable attack is a brute-force attack (exhaustively guessing every possible key). For an $n$-bit key, an attacker must perform up to $2^n$ attempts in the worst-case scenario.
 
-\paragraph{The XOR function}
-The XOR function is the ideal confusion operator: if the input is random then the output is random. It's a primitive operation available on all CPUs.
-
-The XOR is the inverse of itself: A xor B = Z, then Z xor B = A, and Z xor A = B. Other properties:
+Symmetric algorithms are generally divided into two categories:
 \begin{itemize}
-    \item A xor 0 = A
-    \item A xor 1 = A'
-    \item A xor A = 0
-    \item A xor A' = 1
+    \item \textbf{Block algorithms} (e.g., DES, 3DES, AES): These divide the data into fixed-length blocks and process them one at a time. If the plaintext size is not an exact multiple of the block length, padding must be added. When used with the correct modes of operation, the secret key can be safely reused.
+    \item \textbf{Stream algorithms} (e.g., ChaCha20, Salsa20): These are generally faster than block algorithms and operate on continuous streams of data. They work by taking a master key and expanding it into an infinite, pseudo-random stream of bits called a keystream. The algorithm then encrypts the message by combining the plaintext with the keystream using a bitwise XOR operation.
 \end{itemize}
 
-\paragraph{DES}
-DES was \textbf{the first symmetric cryptography algorithm}. To use it, we need to define modes. The key length was initially short: only 56 bits, and other bits (8 bits) were not used for additional security, but for parity, to obtain a 64 length key. Being a symmetric algorithm, it works by splitting the data in blocks.
+\addfigure[Table of most used symmetric block algorithms (Note: block lengths and key lengths are often required for exercises)]{png/symmetric-algos.png}{0.8}
 
-This algorithm was \textbf{designed to be efficient in hardware} (not software), because it required XOR for shift, and permutation, which are very easy operations to do in hardware.
+\subsubsection{Block algorithms}
+The Data Encryption Standard (DES) was one of the first widely adopted symmetric block ciphers. It operates by splitting plaintext into 64-bit blocks and encrypting them using a 56-bit key.
+The primary vulnerability of DES lies in this short key length; modern computational power can easily exhaust a 56-bit keyspace via brute-force attacks.
 
-But the key length of just 56 bits was the major weakness: in 1999 a DES key was computed in only 22 hours and 15 minutes on a special computer (parallel hardware and brute force).
+To extend the viability of the algorithm, multiple encryption layers were proposed. An initial approach, Double DES, applied the encryption process twice:
+$$C = \text{enc}(K_2, \text{enc}(K_1, P))$$
+However, Double DES is critically vulnerable to the meet-in-the-middle (MitM) attack, which drastically reduces its theoretical security and renders it impractical.
+Consequently, the industry adopted Triple DES (3DES). 3DES applies the DES algorithm three times in succession, utilizing either two or three distinct 56-bit keys.
 
-So, another symmetrical algorithm was needed: Double DES. This performs DES twice: encrypting the already encrypted message:
-\[C = enc(K_2, enc(K_1,P))\]
-However, double application of encryption algorithms is subject to a known plaintext attack named \textbf{meet-in-the-middle}, which allows to discover the key and decrypt the data with \textbf{at most} $2^{n+1}$ attempts, if the keys are $N-$bit long.
+The main drawback of 3DES is its slow computational speed, which paved the way for modern standards. Today, the Advanced Encryption Standard (AES) is the globally accepted standard. AES is a block cipher with a fixed block size of 128 bits and supports key lengths of 128, 192, or 256 bits.
+The length of the key affects both the computational overhead (longer keys require slightly more processing time) and the lifespan of the data's security (longer keys protect data further into the future). The duration data remains secure is heavily influenced by available computational power; future advancements, particularly in quantum computing, will drastically reduce cracking times. Currently, a 128-bit key is considered secure for decades, while 256-bit keys offer top-secret, quantum-resistant longevity.
 
-Basically, the computation time doubles (because we need to encrypt twice), but the strength of the effective key increases of just one bit (for DES it becomes $2\cdot 2^{56}=2^{57}$). Thus, the double version of encryption algorithms is never used.
+\subsubsection{Modes: Application of block algorithms}
+When the data to be encrypted exceeds a single block size, several questions arise: How do we handle a final block that is too short? Should blocks be processed independently, or should they be cryptographically linked?
+To address these issues, block algorithms utilize "modes of operation," which define exactly how to securely process multi-block data.
 
-\paragraph{Triple DES}
-Triple DES is applying DES 3 times. It uses two of three 56 bit keys, and is usually applied in the EDE mode (for compatibility with DES when the 3 keys are the same).
-
-We don't have full strength, but it's way better than simple DES. It's just an adaptation: apply DES 3 times. Triple DES was not fast, it took too much time for some applications. Moreover, the strength of the key is not that good.
-
-For these reasons, a national competition (AES) was launched to replace the DES approach. There were 5 finalists:
+\paragraph{ECB (Electronic Codebook) mode}
+The simplest and most naive mode. The message is divided into blocks, and each block is encrypted entirely independently using the same key.
+Formula: $C_i = E_K(P_i)$
+\addfigure[ECB encryption and decryption schema]{png/ECB-schema.png}{0.8}
+\textbf{Pros:}
 \begin{itemize}
-    \item MARS by IBM
-    \item RC6
-    \item Rijnadael
-    \item Serpent
-    \item Twofish
+    \item \textbf{Parallelization:} Blocks can be encrypted and decrypted in parallel, making the algorithm very fast to execute.
+    \item \textbf{No error propagation:} A transmission error in a single ciphertext block generates an error only during the decryption of that specific block; subsequent blocks remain unaffected.
 \end{itemize}
-Candidates were allowed to look and criticize algorithms of others. In the year 2000, the winner was chosen, and it was Rijndael (AES), which became gradually adopted after 2010 instead of DES. Triple DES (3DES) is still used in some legacy systems, particularly in the financial industry for securing transactions in ATMs, point-of-sale systems, and electronic funds transfers (EFT).  It remains in use due to backward compatibility with older hardware and software, and because upgrading can be costly or impractical. The EMV standard for chip-enabled credit card transactions also relies on 3DES. However, its use is being actively phased out. The National Institute of Standards and Technology (NIST) has deprecated 3DES for new applications and prohibited its use after December 31, 2023, for encryption with three-key TDEA.
 
-\paragraph{Application of block algorithms - modes}
-There are different \textbf{modes} for applying block algorithms. Some (ECB, CBC) are for when the plaintext data has size greater than the algorithm's block size; others (padding, CFB, OFB) are when the plaintext to encode has size less than the algorithm's block size.
-
-\paragraph{ECB (Electronic Code Book) mode}
-Data is split in blocks (because it's still a mode for block algorithms). Each block is then \textbf{individually encrypted}. If one block is affected by some corruption, that won't affect the decryption of other blocks, because they're decrypted independently.
-
-But there are several problems from the security point of view, and for this reason ECB can't be used on \textbf{long} messages, it's only used with small messages.
-
-The problems are:
+\textbf{Cons:}
 \begin{itemize}
-    \item Swapping: if I'm an attacker i can swap 2 blocks, send them to the receiver, and when the receiver decrypts them he won't know a swapping occurred.
-
-    \item An attacker can compare a cipher text he intercepted from the wire to some cipher test he had in his DB. This is called \textbf{known-plaintext attack}, because the attacker needs to first create this DB starting from known plaintexts. For example, the first block can always be the same, presentation block.
+    \item \textbf{Lack of integrity:} The swapping, reordering, or deletion of ciphertext blocks (e.g., swapping $C_i$ and $C_{i+1}$) goes completely undetected by the receiver.
+    \item \textbf{Pattern leakage:} Identical plaintext blocks always generate identical ciphertext blocks under the same key. This reveals data patterns and makes the cipher highly vulnerable to known-plaintext attacks.
 \end{itemize}
-To counter the memorization of blocks in a DB, there are randomization techniques (using an initialization vector that is random, unpredictable and as long as the block size, e.g. 128 bits for AES). We give this as input to the XOR function, the output gets encrypted with a key K, and this encrypted message is the C1 block. Then, this C1 block is used to encrypt the block C2, and so on.
 
-CBC: pros
+\textbf{Example of a Known-Plaintext Attack on ECB:}
+\begin{enumerate}
+    \item Assume an attacker computes a database containing the ciphertexts of known-plaintext data (e.g., a highly predictable standard file header) encrypted under many possible keys.
+    \item Next, assume the attacker intercepts a ciphertext from the wire or retrieves it from a database.
+    \item The attacker can discover the secret key by simply comparing the intercepted ciphertext blocks with the precomputed ciphertexts saved in the database from step 1. Once a match is found, the key is revealed.
+\end{enumerate}
+
+\paragraph{CBC (Cipher Block Chaining) mode}
+To fix the pattern leakage inherent in ECB, CBC introduces chaining. Before being encrypted, each plaintext block is XORed with the previously generated ciphertext block.
+Formula: $C_i = E_K(P_i \oplus C_{i-1})$\\
+\textbf{Initialization Vector (IV):} Because the very first plaintext block ($P_1$) does not have a "previous ciphertext block," a random IV is used as a stand-in for $C_0$.
+\addfigure[CBC encryption schema]{png/CBC-1.png}{0.6}
+\addfigure[CBC decryption schema]{png/CBC-2.png}{0.6}
+
+\textbf{Pros:}
 \begin{itemize}
-    \item No swapping attacks, because if a swap between two blocks occurs, the decrypted blocks will be corrupted.
-    
-    \item Even if an attacker knows the first block P1, it's not useful: there are no more identical blocks, because there is a randomization.
+    \item \textbf{Resistance to swapping attacks:} Unlike ECB, exchanging two ciphertext blocks (e.g., swapping $C_i$ and $C_{i+1}$) does not go unnoticed. This action will corrupt the corresponding decrypted blocks ($P_i$, $P_{i+1}$, and $P_{i+2}$), making the tampering evident to the receiver.
+    \item \textbf{Resistance to known-plaintext attacks:} Because of the chaining mechanism (XORing the current plaintext with the previous ciphertext), identical plaintext blocks will no longer generate identical ciphertext blocks. This effectively hides structural patterns in the data.
 \end{itemize}
-Cons:
-\begin{itemize}
-    \item Blocks can't be encrypted in parallel, but necessarily sequentially.
 
-    \item Error propagation: one error in transmission (e.g. in $C_i$) generates an error at the decryption of two blocks (i.e. in $P_i$ and $P_{i+1}$)
-    
-    \item \textbf{Malleability}: if an attacker inverts a specific bit, that exact bit will be also inverted in the plain text (this has to do with the XOR function).
+\textbf{Cons:}
+\begin{itemize}
+    \item \textbf{Error propagation:} A single transmission error in one ciphertext block (e.g., a flipped bit in $C_i$) will generate decryption errors in exactly two blocks: the current block ($P_i$) will be completely scrambled, and the specific corresponding bit in the next block ($P_{i+1}$) will be flipped.
+    \item \textbf{Sequential encryption:} Encryption cannot be parallelized. The algorithm must wait for the computation of $C_i$ to finish before it can begin encrypting $P_{i+1}$. Note: decryption \textit{can} be parallelized because all the cyphertext blocks are available at the beginning.
+    \item \textbf{Malleability (Bit-flipping attacks):} CBC mode is malleable. An attacker who knows the structure of the plaintext can strategically invert single bits of a specific plaintext block by flipping the corresponding bits in the Initialization Vector (IV) or the preceding ciphertext block.
 \end{itemize}
 
 \paragraph{Padding}
-As we said, if the last block of data is less then the block size, we need to add padding bits. There are many ways of choosing the padding bits. Depending on the amount of added padding, ---
-
-Even if plaintext is an exact multiple of the block, padding still must be added! Because the receiver can't know if the last portion was padded or not, so the technique we use is: \textbf{we always add padding}, and when the data is exactly the size of block length, we add a \textbf{full block of padding}. Some attacks exploited padding.
-
-Let's see how padding allows us to perform attacks. 
-
-
-CTS mode is to avoid adding padding. We encrypt and we get a block composed of head and tail. The tail is composed of how many bits we're missing in $P_n$. Then, the head (the part of the cipher text block) we take it and we put it in the last position. We then obtain $P_{n^*}$, which is of the right size.
-
-CTS is useful when we can't increase the size of the data with encryption.
-
-\paragraph{CTS - Example with CBC (better)}
-In order to encrypt a block, CBC needs the cipher text of the block before it. We again split the encrypted block into head and tail. The size of the tail will be the size we're missing in terms of bits.
-
-The last plain text block is filled with 0.
-
-\paragraph{CTR (Counter mode)}
-This is often very used. It allows to use a block algorithm as if it's a stream algorithm, without padding. A block algorithm works with blocks: one at a time. CTR algorithm allows us to encrypt N bits at a time (a group). We take a register, and we put a value in it, which has been calculated by a function (normally a concatenation function), a counter and the nonce, which is a random number.
-
-So here the block algorithms is not used to generate the block, but to generate the $K$ string, which is used to encrypt the data. The nonce must be generated by the sender but it must be sent to the receiver for the decryption! Both encryption and decryption can be done in parallel here.
-
-\paragraph{Counter mode - pros and cons}
-Pros:
+Padding is not a mode of operation, but rather a structural requirement for many block modes (like ECB and CBC) when the plaintext is not an exact multiple of the block size. For instance, if you need to encrypt 40 bytes of data using a cipher with a 64-byte block size, 24 bytes of padding must be appended.
+The exact values used for padding bytes are defined by standardized conventions (such as PKCS\#7).
+The two main drawbacks of padding are:
 \begin{itemize}
-    \item Parallel encryption and decryption
-    \item no padding needed
-    \item random direct access to ciphertext
-    \item identical plaintext groups encrypt differently, so it's difficult to perform cryptoanalysis
-    \item no swapping attack: by exchanging two blocks $C_i$ and $C_{i+1}$, the obtained decrypted blocks $P_i$ and $P_{i+1}$ will be corrupted
+    \item \textbf{Inefficiency:} Padding bytes carry no actual information, meaning you consume bandwidth and storage transmitting useless data.
+    \item \textbf{Mandatory Expansion:} Even if the original plaintext is a perfect multiple of the block size, an entire extra block of padding must still be added. Without it, the receiver's decryption algorithm would have no reliable way to distinguish actual data bytes from padding bytes at the end of the file.
 \end{itemize}
-Cons:
+To avoid the overhead of padding, the following specialized modes and techniques can be used.
+
+\paragraph{CTS (Ciphertext Stealing)}
+CTS is not a standalone mode, but a technique used in conjunction with block cipher modes like CBC or ECB. It allows you to encrypt data that isn't a perfect multiple of the block size \textbf{without adding any padding}. The final ciphertext will be exactly the same length as the original plaintext.
+When the algorithm reaches the final, incomplete plaintext block ($P_n$), it "steals" enough bits from the previously generated ciphertext block ($C_{n-1}$) to pad $P_n$ out to a full block. These blocks are then encrypted, and the final two ciphertext blocks are mathematically swapped or truncated to maintain the correct overall message length.
+\addfigure[ECB encryption with CTS]{png/CTS-ECB.png}{0.7}
+\addfigure[CBC encryption with CTS]{png/CTS-CBC.png}{0.7}
+
+\paragraph{CTR (Counter) mode}
+CTR effectively turns a block cipher into a stream cipher. It eliminates the need for padding and allows data to be encrypted bit-by-bit or byte-by-byte. It uses a \textbf{Counter} (a value that increments for each block) combined with a \textbf{Nonce} (a random Number Used Once).
+In this mode, the block algorithm does not encrypt the plaintext directly. Instead, it encrypts the Nonce and Counter to generate a pseudorandom keystream block. This keystream is then XORed with the plaintext to produce the ciphertext.
+Formula: $C_i = P_i \oplus E_K(\text{Nonce} \parallel \text{Counter}_i)$
+
+Because the Nonce is required to reconstruct the keystream during decryption, it must be generated by the sender and transmitted (usually in plain text) alongside the ciphertext to the receiver.
+\addfigure[CTR encryption]{png/CTR.png}{0.7}
+
+\textbf{Pros:}
 \begin{itemize}
-    \item 
+    \item \textbf{Parallel execution:} Both encryption and decryption can be highly parallelized.
+    \item \textbf{No padding required:} Because the keystream is XORed directly with the plaintext, it operates like a stream cipher and does not require block padding.
+    \item \textbf{Random access:} You can directly access and decrypt any specific ciphertext block without needing to process the preceding blocks.
+    \item \textbf{Resistance to known-plaintext attacks:} Identical plaintext groups encrypt differently (due to the incrementing counter), making cryptanalysis very difficult.
+    \item \textbf{Resistance to swapping attacks:} Exchanging two ciphertext blocks (e.g., $C_i$ and $C_{i+1}$) does not go unnoticed; the resulting decrypted blocks ($P_i$ and $P_{i+1}$) will be corrupted.
 \end{itemize}
 
+\textbf{Cons:}
+\begin{itemize}
+    \item \textbf{Malleability:} A transmission error or intentional bit-flip in one group causes an error \textit{only} in that specific group.
+    \item \textbf{Desynchronization:} The cancellation (loss or deletion) of an entire group causes desynchronization between the sender's counter and the receiver's counter. As a result, all subsequent groups will be decrypted erroneously.
+\end{itemize}
 
-\paragraph{Stream algorithms}
-The one-time pad algorithm is an \textbf{ideal} algorithm: perfect real security (not  just computational security).
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{3.5cm}|}
+        \hline
+        \textbf{Feature / Property} & \textbf{ECB} & \textbf{CBC} & \textbf{CTR} \\
+        \hline
+        \textbf{Parallel Encryption} & Yes (Fast) & No (Sequential bottleneck) & Yes (Fast) \\
+        \hline
+        \textbf{Parallel Decryption} & Yes & Yes & Yes \\
+        \hline
+        \textbf{Padding Required} & Yes & Yes & No \\
+        \hline
+        \textbf{Hides Data Patterns} & No (Identical blocks generate identical ciphertexts) & Yes & Yes \\
+        \hline
+        \textbf{Transmission Error (1 bit in $C_i$)} & Affects only $P_i$ (No error propagation) & Corrupts $P_i$ and $P_{i+1}$ & Affects only that specific group \\
+        \hline
+        \textbf{Swapping Attack ($C_i$ and $C_{i+1}$)} & Undetected (Highly vulnerable) & Detected (Corrupts $P_i$, $P_{i+1}$, and $P_{i+2}$) & Detected (Corrupts $P_i$ and $P_{i+1}$) \\
+        \hline
+        \textbf{Malleability \newline (Bit-flipping attacks)} & Vulnerable to block replacement & Yes (By flipping bits in IV or $C_{i-1}$) & Yes (Highly malleable; direct bit-flipping) \\
+        \hline
+        \textbf{Random Access to Ciphertext} & Yes & No (Requires previous block to decrypt) & Yes \\
+        \hline
+        \textbf{Block Cancellation \newline (Dropped block)} & Misaligns data & Misaligns data & Fatal (Desynchronizes counter, corrupting all subsequent groups) \\
+        \hline
+    \end{tabular}
+    \vspace{0.2cm}
+    \caption{Comparison of Block Cipher Modes of Operation: ECB, CBC, and CTR}
+    \label{tab:modes_comparison}
+\end{table}
 
-We have in real algorithms pseudo-random generators: they're random for a while, but after that, keys repeat.
+\subsubsection{Stream algorithms}
+Symmetric stream algorithms operate directly on a continuous stream of data. They encrypt each plaintext digit (typically a single bit or byte) one at a time using a corresponding digit from a keystream, bypassing the need to divide data into fixed-size blocks.
+The theoretical ideal for this method is the one-time pad, though it is highly impractical for daily use because it requires a completely random key that is at least as long as the message itself.
+To solve this practically, modern stream ciphers utilize pseudo-random key generators to dynamically produce the keystream, which must remain perfectly synchronized between sender and receiver.
+Stream algorithms are generally \textbf{faster} than block algorithms and inherently do not require padding. However, they carry a strict security rule: a key/nonce combination must never be reused.
+Today, the most prominent and secure stream algorithms are Salsa20 and ChaCha20.
 
-The sender and the receiver have to agree on a function, typically the XOR. The seed generates a pseudo random key stream.
+\addfigure[Stream algorithm schema]{png/stream.png}{0.8}
 
-We don't use RC4 anymore, it's old and not recommended.
 
-\paragraph{Salsa20 and ChaCha20}
-The ChaCha20 is an improvement of Salsa20. In order to generate the key function there's a key, nonce and counter. IETF has modified the ChaCha20 algorithm to make some distributions, but there's a limit of $256$ GB, if we want to encrypt bigger data we need to use the original definition of Bernstein.
+\subsection{Asymmetric cryptographic}
 
-ChaCha20 is used by a Google and others.
 
-\paragraph{Symmetric cryptography: how many keys?}
-In symmetric cryptography, we need one key for each couple/group of users, for example Alice uses 1 key for communicating with Bob, another key for communicating with Another person, and there's also the possibility of defining a key for the communication between a group: Alice could use a single key $K_G$ for communications in the group $G$.
 
-But distributing all these keys is a problem in practice, especially in big groups. If we have $N$ parties, we'll have to exchange $\frac{N(N-1)}{2}$ keys. Either we distribute them OOB (out of the wire, by meeting at a coffee shop), or by means with a third party, or with a key exchange algorithm.
+
+
+
+
+\section{Confidentiality - encryption}
+
+
 
 \paragraph{Public key cryptography}
 This was a big change: the introduction of \textbf{asymmetric algorithms}. Until 1970's only symmetric cryptography was used. Then, public key cryptography was invented: we don't have a single key for a communication, but 2 different keys. Each user will have a \textbf{pair} of keys: one public $K_{pub}$ and one private $K_{pri}$. These keys can be used together.
@@ -215,10 +235,6 @@ When RSA was invented it was used by anybody for 20 years for digital signatures
 
 So, finally RSA started becoming vulnerable. Any of these computationally secure algorithms will eventually become vulnerable, as we're now entering into the post-quantum era.
 
-
-
-
-Lez Tuesday 14 oct\\
 DH can be attacked with man in the middle attack, because there's no authentication. But it's resistant to sniffing, because even if the attacker reads A and B, if he doesn't have X and Y he can't decipher.
 
 \paragraph{Elliptic curve cryptography (ECC)}
@@ -232,6 +248,15 @@ Instead of using modular arithmetic, the operations are executed on the surface 
 
 \paragraph{Future of asymmetric cryptography}
 As we said, we're moving in a post-quantum era, so asymmetric algorithms (DSA, RSA, etc.) will be dismissed, as new quantum computers will be able to easily \textbf{factorize} even big numbers. So factorization won't be effective anymore. This means in a few years, the algorithms and protocols need to be replaced.
+
+
+
+
+
+
+
+
+
 
 \section{Integrity - digest}
 Let's move from confidentiality to integrity. An attacker can intercept a message between two hosts and modify it, before it gets to the receiver. Let's understand how to avoid this problem.
@@ -252,7 +277,7 @@ An ideal hash function must have the following properties:
 In addition to these three properties, a good hash function is one such that changing a single bit of input results in entirely unpredictable output changes.
 
 \paragraph{How to use hash functions in practice to check integrity}
-Let's assume we want to protect the integrity of an object $A$ (file, document, email, etc.). We can first compute the hash file $md = h(A)$ and store the hash value ($md$) in a \textbf{secure} place. 
+Let's assume we want to protect the integrity of an object $A$ (file, document, email, etc.). We can first compute the hash file $md = h(A)$ and store the hash value ($md$) in a \textbf{secure} place.
 
 Now, we can keep the data $A$ even in a non-secure place, because before using an object (file, document, etc.), the system re-computes a hash of the object and compares it to the stored hash. If these 2 hash values do not match, the object was probably changed in an unauthorized manner: no integrity.
 
@@ -310,7 +335,7 @@ If the length of the key is smaller than the length of output ($|K|<L$) we have 
 Note that HMAC can use different hash functions, depending on how it's configured.
 
 \paragraph{CBC-MAC}
-CBC-MAC stands for Cipher Block Chaining Message Authentication Code, a cryptographic technique that uses a block cipher to create a tag that verifies a message's authenticity and integrity. It works by encrypting a message in blocks, where each block's encryption depends on the previous block's ciphertext. The final ciphertext block is then used as the message authentication code. 
+CBC-MAC stands for Cipher Block Chaining Message Authentication Code, a cryptographic technique that uses a block cipher to create a tag that verifies a message's authenticity and integrity. It works by encrypting a message in blocks, where each block's encryption depends on the previous block's ciphertext. The final ciphertext block is then used as the message authentication code.
 
 We split our data $M$ in $N$ blocks. Then we have the iterations of the CBC encrypt, with initialization vector IV equal to 0. We perform encryption with CBC mode: first we XOR, then we encrypt. $V_N$, the value of the encryption of the last block, will be our keyed-digest.
 
@@ -371,17 +396,17 @@ Also, digital signatures can't be copied, unlike the handwritten signature that 
 Let's see how to bind a public key to an entity (person, node). In the case of a digital signature, it's mandatory, in order to achieve non-repudiation. There are some solutions:
 \begin{itemize}
     \item out of band: you meet in person and you bind this way. But of course this doesn't scale to big groups.
-    
+
     \item ?
 \end{itemize}
-The public key is like a \textbf{passport}, so they must be issued by some authority: the Certification Authority (CA). On large scale, public keys are handled by \textbf{public key infrastructures}. 
+The public key is like a \textbf{passport}, so they must be issued by some authority: the Certification Authority (CA). On large scale, public keys are handled by \textbf{public key infrastructures}.
 
 The public keys have a limited lifetime, like real life passports. Normally these keys last for more or less 1 year.
 
 The CA can revoke one entity's key.
 
 \paragraph{Formats for public key certificates}
-There are formats but they're not all used, some are deprecated by now. Today, the X.509 is the most widely used. 
+There are formats but they're not all used, some are deprecated by now. Today, the X.509 is the most widely used.
 
 \paragraph{Structure of a X.509v3 certificate (simplified)}
 There is a string called "distinguished name", that contains:
@@ -421,7 +446,7 @@ i.e. they can be used to demonstrate that a document is authentic and coming fro
 Nowadays, there are 2 revocation mechanisms, i.e. ways to know if a certificate has been revoked or not:
 \begin{itemize}
     \item CRL (Certificate Revocation List): a big list of revoked certificates, that grows over time. This list itself is digitally signed, to ensure integrity (avoid its modification) and authenticity. The CRL is indicated in the certificate itself, in the CRLDP extension.
-    
+
     \item OCSP (Online Certificate Status Protocol).
 \end{itemize}
 The Certificate Revocation List (CRL) can grow significantly in size, yet it is useful because it shows whether a certificate was valid or invalid \textbf{at any given point in time} we wish to verify. The CRL must be part of the certificate whenever it is utilized.
@@ -461,14 +486,14 @@ Normally, on standard clients we don't have problems for performance. But on the
 
 Which algorithms should we use, since there are many? There is the commercial national security algorithm suit (of USA) that recommends the following:
 \begin{itemize}
-    \item symmetric encryption: AES-256. if our application sends data in a channel with low bandwidth, it should use flow mode CTR, otherwise GCM 
+    \item symmetric encryption: AES-256. if our application sends data in a channel with low bandwidth, it should use flow mode CTR, otherwise GCM
 
     \item if we need to hash, use SHA-384 (the one with shorter digest is considered too dangerous).
 
     \item key agreement: ECDH (subject to key in the middle, not authenticated) and ECMQV (elliptic curve)
 
     \item for digital signature: ECDSA (not just DSA)
-    
+
     \item EC on the curve P-384.
 \end{itemize}
 If our app does not support these algorithms (i.e. if we have a legacy system), we should use:
