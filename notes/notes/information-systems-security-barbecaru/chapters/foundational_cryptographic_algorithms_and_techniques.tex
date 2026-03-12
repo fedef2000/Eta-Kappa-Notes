@@ -11,10 +11,9 @@ These are some terms that must be known:
     \item[Decrypt or Decipher:] The process of recovering $P$ from $C$.
 \end{description}
 
-\section{Confidentiality - encryption}
 Encryption is a process used to ensure confidentiality of a message. The encryption algorithms can be divided into 2 categories: symmetric and asymmetric.
 
-\subsection{Symmetric cryptography}
+\section{Symmetric cryptography}
 In symmetric cryptography, there is a single shared key $K$ between the two parties: the sender who encrypts the data and the receiver who decrypts it. This key must be kept secret. To protect the data, the sender inputs the plaintext message into the encryption algorithm along with the secret key $K$.
 The encrypted message (ciphertext) is then transmitted, and the receiver applies the decryption algorithm using the \textbf{same key $K$} to recover the original message.
 
@@ -37,13 +36,13 @@ Then the encryption algorithm itself can (and should) be made public. Public alg
 
 Symmetric algorithms are generally divided into two categories:
 \begin{itemize}
-    \item \textbf{Block algorithms} (e.g., DES, 3DES, AES): These divide the data into fixed-length blocks and process them one at a time. If the plaintext size is not an exact multiple of the block length, padding must be added. When used with the correct modes of operation, the secret key can be safely reused.
-    \item \textbf{Stream algorithms} (e.g., ChaCha20, Salsa20): These are generally faster than block algorithms and operate on continuous streams of data. They work by taking a master key and expanding it into an infinite, pseudo-random stream of bits called a keystream. The algorithm then encrypts the message by combining the plaintext with the keystream using a bitwise XOR operation.
+    \item \textbf{Block algorithms} (DES, 3DES, AES): These divide the data into fixed-length blocks and process them one at a time. If the plaintext size is not an exact multiple of the block length, padding must be added. When used with the correct modes of operation, the secret key can be safely reused.
+    \item \textbf{Stream algorithms} (ChaCha20, Salsa20): These are generally faster than block algorithms and operate on continuous streams of data. They work by taking a master key and expanding it into an infinite, pseudo-random stream of bits called a keystream. The algorithm then encrypts the message by combining the plaintext with the keystream using a bitwise XOR operation.
 \end{itemize}
 
-\addfigure[Table of most used symmetric block algorithms (Note: block lengths and key lengths are often required for exercises)]{png/symmetric-algos.png}{0.8}
+\addfigure[Table of most used symmetric block algorithms (Note: block lengths and key lengths can be required for exercises)]{png/symmetric-algos.png}{0.8}
 
-\subsubsection{Block algorithms}
+\subsection{Block algorithms}
 The Data Encryption Standard (DES) was one of the first widely adopted symmetric block ciphers. It operates by splitting plaintext into 64-bit blocks and encrypting them using a 56-bit key.
 The primary vulnerability of DES lies in this short key length; modern computational power can easily exhaust a 56-bit keyspace via brute-force attacks.
 
@@ -55,11 +54,11 @@ Consequently, the industry adopted Triple DES (3DES). 3DES applies the DES algor
 The main drawback of 3DES is its slow computational speed, which paved the way for modern standards. Today, the Advanced Encryption Standard (AES) is the globally accepted standard. AES is a block cipher with a fixed block size of 128 bits and supports key lengths of 128, 192, or 256 bits.
 The length of the key affects both the computational overhead (longer keys require slightly more processing time) and the lifespan of the data's security (longer keys protect data further into the future). The duration data remains secure is heavily influenced by available computational power; future advancements, particularly in quantum computing, will drastically reduce cracking times. Currently, a 128-bit key is considered secure for decades, while 256-bit keys offer top-secret, quantum-resistant longevity.
 
-\subsubsection{Modes: Application of block algorithms}
+\subsection{Modes: Application of block algorithms}
 When the data to be encrypted exceeds a single block size, several questions arise: How do we handle a final block that is too short? Should blocks be processed independently, or should they be cryptographically linked?
 To address these issues, block algorithms utilize "modes of operation," which define exactly how to securely process multi-block data.
 
-\paragraph{ECB (Electronic Codebook) mode}
+\subsubsection{ECB (Electronic Codebook) mode}
 The simplest and most naive mode. The message is divided into blocks, and each block is encrypted entirely independently using the same key.
 Formula: $C_i = E_K(P_i)$
 \addfigure[ECB encryption and decryption schema]{png/ECB-schema.png}{0.8}
@@ -75,14 +74,14 @@ Formula: $C_i = E_K(P_i)$
     \item \textbf{Pattern leakage:} Identical plaintext blocks always generate identical ciphertext blocks under the same key. This reveals data patterns and makes the cipher highly vulnerable to known-plaintext attacks.
 \end{itemize}
 
-\textbf{Example of a Known-Plaintext Attack on ECB:}
+\textit{Example of a Known-Plaintext Attack on ECB:}
 \begin{enumerate}
     \item Assume an attacker computes a database containing the ciphertexts of known-plaintext data (e.g., a highly predictable standard file header) encrypted under many possible keys.
     \item Next, assume the attacker intercepts a ciphertext from the wire or retrieves it from a database.
     \item The attacker can discover the secret key by simply comparing the intercepted ciphertext blocks with the precomputed ciphertexts saved in the database from step 1. Once a match is found, the key is revealed.
 \end{enumerate}
 
-\paragraph{CBC (Cipher Block Chaining) mode}
+\subsubsection{CBC (Cipher Block Chaining) mode}
 To fix the pattern leakage inherent in ECB, CBC introduces chaining. Before being encrypted, each plaintext block is XORed with the previously generated ciphertext block.
 Formula: $C_i = E_K(P_i \oplus C_{i-1})$\\
 \textbf{Initialization Vector (IV):} Because the very first plaintext block ($P_1$) does not have a "previous ciphertext block," a random IV is used as a stand-in for $C_0$.
@@ -102,7 +101,7 @@ Formula: $C_i = E_K(P_i \oplus C_{i-1})$\\
     \item \textbf{Malleability (Bit-flipping attacks):} CBC mode is malleable. An attacker who knows the structure of the plaintext can strategically invert single bits of a specific plaintext block by flipping the corresponding bits in the Initialization Vector (IV) or the preceding ciphertext block.
 \end{itemize}
 
-\paragraph{Padding}
+\subsubsection{Padding}
 Padding is not a mode of operation, but rather a structural requirement for many block modes (like ECB and CBC) when the plaintext is not an exact multiple of the block size. For instance, if you need to encrypt 40 bytes of data using a cipher with a 64-byte block size, 24 bytes of padding must be appended.
 The exact values used for padding bytes are defined by standardized conventions (such as PKCS\#7).
 The two main drawbacks of padding are:
@@ -112,13 +111,13 @@ The two main drawbacks of padding are:
 \end{itemize}
 To avoid the overhead of padding, the following specialized modes and techniques can be used.
 
-\paragraph{CTS (Ciphertext Stealing)}
+\subsubsection{CTS (Ciphertext Stealing)}
 CTS is not a standalone mode, but a technique used in conjunction with block cipher modes like CBC or ECB. It allows you to encrypt data that isn't a perfect multiple of the block size \textbf{without adding any padding}. The final ciphertext will be exactly the same length as the original plaintext.
 When the algorithm reaches the final, incomplete plaintext block ($P_n$), it "steals" enough bits from the previously generated ciphertext block ($C_{n-1}$) to pad $P_n$ out to a full block. These blocks are then encrypted, and the final two ciphertext blocks are mathematically swapped or truncated to maintain the correct overall message length.
 \addfigure[ECB encryption with CTS]{png/CTS-ECB.png}{0.7}
 \addfigure[CBC encryption with CTS]{png/CTS-CBC.png}{0.7}
 
-\paragraph{CTR (Counter) mode}
+\subsubsection{CTR (Counter) mode}
 CTR effectively turns a block cipher into a stream cipher. It eliminates the need for padding and allows data to be encrypted bit-by-bit or byte-by-byte. It uses a \textbf{Counter} (a value that increments for each block) combined with a \textbf{Nonce} (a random Number Used Once).
 In this mode, the block algorithm does not encrypt the plaintext directly. Instead, it encrypts the Nonce and Counter to generate a pseudorandom keystream block. This keystream is then XORed with the plaintext to produce the ciphertext.
 Formula: $C_i = P_i \oplus E_K(\text{Nonce} \parallel \text{Counter}_i)$
@@ -171,7 +170,7 @@ Because the Nonce is required to reconstruct the keystream during decryption, it
     \label{tab:modes_comparison}
 \end{table}
 
-\subsubsection{Stream algorithms}
+\subsection{Stream algorithms}
 Symmetric stream algorithms operate directly on a continuous stream of data. They encrypt each plaintext digit (typically a single bit or byte) one at a time using a corresponding digit from a keystream, bypassing the need to divide data into fixed-size blocks.
 The theoretical ideal for this method is the one-time pad, though it is highly impractical for daily use because it requires a completely random key that is at least as long as the message itself.
 To solve this practically, modern stream ciphers utilize pseudo-random key generators to dynamically produce the keystream, which must remain perfectly synchronized between sender and receiver.
@@ -181,73 +180,99 @@ Today, the most prominent and secure stream algorithms are Salsa20 and ChaCha20.
 \addfigure[Stream algorithm schema]{png/stream.png}{0.8}
 
 
-\subsection{Asymmetric cryptographic}
+\section{Asymmetric cryptographic}
 
+Asymmetric cryptography uses a linked pair of keys: a public key and a private key. These keys are always generated together and function inversely—a message encrypted with one key can only be decrypted by the other, and vice versa.
 
+Beyond keeping data secret, this method can also be used to ensures authenticity (proving the message truly came from the sender) and integrity (proving the message hasn't been altered).
+However, asymmetric encryption is significantly slower than symmetric encryption. Because of this, it is rarely used to encrypt long messages directly.
+Instead, it is typically used to securely exchange a faster symmetric key, which is then used to encrypt the actual message data.
+Two of the most used algorithm to generate a pair of keys are RSA and Diffie-Hellman
 
+\subsection{RSA}
+The RSA (Rivest--Shamir--Adleman) is a foundational public-key algorithm used to generate a pair of public keys.
+Its security relies on the mathematical difficulty of factoring the product of two extremely large prime numbers.
+The RSA key generation process follows these steps:
+\begin{enumerate}
+    \item Select two large, secret prime numbers, $P$ and $Q$, randomly chosen.
+    \item Compute the public modulus $N = P \times Q$. The overall RSA key size (typically 2048 bits in modern applications) refers to the bit-length of this modulus $N$.
+    \item Calculate $\Phi = (P-1)(Q-1)$.
+    \item Choose Public Exponent $E$ such that $1 < E < \Phi$, and it is relatively prime to $\Phi$ (i.e. $\gcd(E, \Phi) = 1$).
+    \item Compute Private Exponent $D$ as the modular multiplicative inverse of $E$ modulo $\Phi$:
+    \[
+    D \equiv E^{-1} \pmod{\Phi}
+    \]
+\end{enumerate}
 
+\noindent This establishes the \textbf{public key} as $(N, E)$ and the \textbf{private key} as $(N, D)$.
+During RSA operations, the algorithm can only cipher data where the numerical value of the plaintext $p$ is strictly less than the modulus ($p < N$).
 
-
-
-\section{Confidentiality - encryption}
-
-
-
-\paragraph{Public key cryptography}
-This was a big change: the introduction of \textbf{asymmetric algorithms}. Until 1970's only symmetric cryptography was used. Then, public key cryptography was invented: we don't have a single key for a communication, but 2 different keys. Each user will have a \textbf{pair} of keys: one public $K_{pub}$ and one private $K_{pri}$. These keys can be used together.
-
-This method is good for confidentiality and allows us to create a digital signature (with hashing). But public key algorithms can't be used to encrypt large amount of data, because the processing load is high (and they won't work if we have a lot of data). So, public key algorithms are used just with small data.
-
-The data we encrypt are usually secret keys, or caches (i.e. summary of the data)
-
-\paragraph{Asymmetric cryptography}
-We achieve authenticity: only that person can use the private key (that's why we can do digital signatures). we also achieve integrity: if an attacker attacks the data will be unintelligible. Important: Not the whole data gets encrypted, but just its \textbf{summary}: the \textbf{digest}.
-
-\paragraph{RSA}
-RSA was born in 1978, initially named MIT algorithm, created by Ron Rivest, Adi Shamir and Leonard Adleman (RSA takes its name from the initials of these names).
-
-RSA generates the key in this way:
 \begin{itemize}
-    \item Two large prime numbers, P and Q are randomly chosen
-    \item ...
+    \item \textbf{Encryption:} $c \equiv p^E \pmod{N}$
+    \item \textbf{Decryption:} $p' \equiv c^D \pmod{N}$
 \end{itemize}
 
-RSA can only encrypt data with size smaller than the module N.
+Terminology Note: Formally, there are no distinct RSA ``encryption'' or ``decryption'' algorithms. There is simply a single RSA mathematical operation. The roles of $E$ and $D$ are entirely interchangeable depending on the key being used, because the math holds true in either direction:
+\[
+(x^D)^E \pmod{N} \equiv (x^E)^D \pmod{N}
+\]
 
-The complexity of the RSA operation depends on how many bits of the exponent are set to 1, that's why typically 65537 is used (a Fermat number).
+\subsection{Diffie-Hellman}
+The Diffie-Hellman (DH) algorithm is classified as key generator, but it is mostly used to securely exchange a shared key, over an insecure, public communication channel.
+Unlike RSA, which can be used to directly encrypt messages, Diffie-Hellman is exclusively used to securely generate a symmetric key that both parties can then use to encrypt subsequent communications.
 
-\paragraph{PKCS encryption encoding}
-We envelop our message: what we actually encrypt is the envelope, not our plaintext that we want to send.
+Before the exchange begins, the two communicating parties (traditionally called Alice and Bob) must agree on two public, non-secret parameters:
+\begin{enumerate}
+    \item \textbf{Prime Modulus ($P$):} A very large prime number.
+    \item \textbf{Generator ($G$):} A base number, which is a primitive root modulo $P$.
+\end{enumerate}
+\noindent \textit{Note: Both $P$ and $G$ can be known to anyone, including potential attackers, without compromising the security of the exchange.}
 
-Nowadays, RSA, DSA and their variance are used, but they're not perfect algorithm: they can be broken by brute force attacks.
+The process of generating the shared secret happens in the following steps:
+\begin{enumerate}
+    \item \textbf{Alice's Private and Public Keys:}
+    Alice chooses a secret, random integer $a$ (her private key). She then computes her public value $A$ and sends it to Bob:
+    \[
+    A \equiv G^a \pmod{P}
+    \]
 
-symmetric algorithm: can be broken with.. ?
-asymmetric: can br broken with brute force
+    \item \textbf{Bob's Private and Public Keys:}
+    Bob chooses his own secret, random integer $b$ (his private key). He computes his public value $B$ and sends it to Alice:
+    \[
+    B \equiv G^b \pmod{P}
+    \]
+\end{enumerate}
 
-To find out P and Q (factorization) is easy for the good guy, but very difficult for the attacker. Once you know P and Q you can know the prime exponent and so the private key.
-
-RSA was patented but the patent expired, so now we can use it without paying.
-
-There's a variant that uses the logarithm. This is good only to calculate digital signature, not for encryption.
-
-\paragraph{TWINKLE and TWIRL}
-When RSA was invented it was used by anybody for 20 years for digital signatures and confidentiality. Then, in 1999 professor Shamir presented the design idea of a hardware, called TWINKLE. It ran at a very high clock rate (10 GHz), and it could perform \textbf{factorization} very quickly. If implemented, this machine could break RSA. In 2003 they gave an estimation: it was possible to factorize RSA in 1 year at the cost of a few dozen million US dollars (or way less if several integers are to be factored simultaneously).
-
-So, finally RSA started becoming vulnerable. Any of these computationally secure algorithms will eventually become vulnerable, as we're now entering into the post-quantum era.
-
-DH can be attacked with man in the middle attack, because there's no authentication. But it's resistant to sniffing, because even if the attacker reads A and B, if he doesn't have X and Y he can't decipher.
-
-\paragraph{Elliptic curve cryptography (ECC)}
-Instead of using modular arithmetic, the operations are executed on the surface of a 2D (elliptic) curve. This was done to avoid having keys too long. Because in elliptic curve, a short key (solving a discrete logarithm) is more complex to solve than a longer key in modular arithmetic. So it's possible to use shorter keys, about 1/10 of the length. This leads to better performance. Nowadays we have variants of algorithms that run on ECC, for example:
+Once Alice and Bob have exchanged their public values ($A$ and $B$), they independently calculate the final shared secret $S$.
 \begin{itemize}
-    \item To create digital signatures: ECDSA.
-    \item To agree on a key: ECDH
-    \item To agree on a key with authentication: ECMQV
-    \item To distribute keys: ECIES
+    \item \textbf{Alice computes:} $S \equiv B^a \pmod{P}$
+    \item \textbf{Bob computes:} $S \equiv A^b \pmod{P}$
 \end{itemize}
 
-\paragraph{Future of asymmetric cryptography}
-As we said, we're moving in a post-quantum era, so asymmetric algorithms (DSA, RSA, etc.) will be dismissed, as new quantum computers will be able to easily \textbf{factorize} even big numbers. So factorization won't be effective anymore. This means in a few years, the algorithms and protocols need to be replaced.
+Both Alice and Bob arrive at the exact same shared secret $S$ because of the associative property of exponents in modular arithmetic. The mathematical operation holds true from both sides:
+\[
+S \equiv B^a \pmod{P} \equiv (G^b)^a \pmod{P} \equiv G^{ab} \pmod{P}
+\]
+\[
+S \equiv A^b \pmod{P} \equiv (G^a)^b \pmod{P} \equiv G^{ab} \pmod{P}
+\]
+
+\addfigure[DH schema]{png/DH-secure.png}{0.8}
+
+Security Note: An attacker sniffing traffic on the channel only sees $P$, $G$, $A$, and $B$. To figure out the shared secret $S$, they would need to calculate $a$ or $b$.
+For sufficiently large values of $P$, calculating the discrete logarithm to find $a$ or $b$ from the public values is computationally infeasible.
+However, this basic version of Diffie-Hellman is vulnerable to Man-In-the-middle attacks, because it lacks built-in identity authentication.
+When Alice and Bob attempt to exchange their public values over the network, an active attacker intercepts the communication.
+Instead of Alice's true public value $A \equiv G^a \pmod{P}$ reaching Bob, the attacker captures it and substitutes it with their own generated public value, $M$.
+The attacker does the exact same thing to Bob, intercepting his public value $B \equiv G^b \pmod{P}$ and sending $M$ to Alice instead.
+Consequently, Alice unknowingly establishes a shared secret key with the attacker, $S_{Alice} \equiv M^a \pmod{P}$, while Bob establishes a separate shared secret key with the attacker, $S_{Bob} \equiv M^b \pmod{P}$.
+Because the attacker holds the corresponding private key for $M$, they can easily compute both $S_{Alice}$ and $S_{Bob}$.
+This allows the attacker to silently intercept a message from Alice, decrypt it using $S_{Alice}$, read or modify the plaintext, re-encrypt it using $S_{Bob}$, and forward it to Bob.
+Both parties remain completely unaware of the breach, falsely believing they are communicating securely directly with each other.
+
+\addfigure[DH schema]{png/DH-MITM.png}{0.8}
+
+\section{Digest}
 
 
 
@@ -255,7 +280,7 @@ As we said, we're moving in a post-quantum era, so asymmetric algorithms (DSA, R
 
 
 
-
+% ---------------------------------------------
 
 
 \section{Integrity - digest}
