@@ -1,252 +1,142 @@
 \chapter[]{Authentication}
-
-----------------------------------------------------------------------
-
 \section{Authentication basics}
-\paragraph{Identification vs authentication}
-Identification answers "who are you?", authentication answers "are you really who you claim to be?". The latter is a process of verifying an \textbf{evidence} to corroborate an asserted identity.
 
-Shorthand for authentication is \textbf{authN} or authC, different from authorization \textbf{authZ}.
+\paragraph{Identification vs. Authentication}
+Identification answers the question \textit{"Who are you?"} (e.g., providing a username), while authentication answers \textit{"Are you really who you claim to be?"} (e.g., providing a password).
+A common shorthand for authentication is \textbf{AuthN}, which is distinct from authorization (\textbf{AuthZ}).
 
-We can authenticate by different \textbf{factors}:
+\paragraph{Authentication Factors}
+We can authenticate a user through different mechanisms, commonly referred to as \textbf{factors}:
 \begin{itemize}
-    \item knowledge: something only the user knows (e.g. password, pin, code)
-
-    \item ownership: something only the user has (token, smart card, smartphone, device, etc.)
-
-    \item inherence: something the user is (e.g. a biometric characteristic such as a fingerprint, voice, eye).
+    \item \textbf{Knowledge}: something only the user knows (e.g., password, PIN, security question).
+    \item \textbf{Ownership}: something only the user has (e.g., hardware token, smart card, smartphone).
+    \item \textbf{Inherence}: something the user is (e.g., a biometric characteristic such as a fingerprint, voice, or iris scan).
 \end{itemize}
-Multi-factor authentication is when different mechanisms are combined. 2-factor authentication typically combines the first 2: knowledge and ownership. 3-factor authentication will require all 3, which is stronger. Often, 2-factor authentication is the minimum today for serious applications.
+\textbf{Multi-factor authentication (MFA)} occurs when different mechanisms are combined. For instance, \textbf{2-factor authentication (2FA)} typically combines knowledge and ownership.
 
-All the factors have advantages and disadvantages:
+\paragraph{Advantages and Disadvantages of Factors}
+All factors come with inherent trade-offs:
 \begin{itemize}
-    \item knowledge: passwords are easy and can be delegated to other people, but they could be stolen. It's maximally efficient only if it stays in your mind, because if it's written somewhere, there's a risk. But it's extremely difficult and energy-consuming to memorize a lot of passwords, considering they also change often.
-
-    \item ownership: risks unauthorized usage (e.g. if someone accesses your phone), theft, cloning (e.g. card)
-
-    \item inherence: risks counterfeit (not easy, but possible) and privacy (i.e. if fingerprint is used everywhere, then each place we authenticate in will have for example a copy of my fingerprint, no privacy). The inherence information also cannot be replaced when compromised, which is a big problem. So, this method should only be used for \textbf{local} authentication, as a mechanism to \textbf{unlock} a secret or a device (like a smartphone). If your password is stolen, you can change it, but if your fingerprint is counterfeit, you can't change it.
+    \item \textbf{Knowledge}: Passwords are easy to implement and can be delegated to other people if necessary. However, they are highly susceptible to theft, guessing, or phishing. Furthermore, human memory is limited; enforcing complex, frequently changing passwords often leads to insecure practices, like writing them down or reusing them across platforms.
+    \item \textbf{Ownership}: Physical tokens or devices are secure against remote guessing, but they risk unauthorized usage if unlocked, physical theft, or cloning.
+    \item \textbf{Inherence}: Biometrics offer high convenience, but they risk counterfeiting and raise severe privacy concerns. The most critical flaw of inherence is that it is \textbf{non-revocable}: if your password is stolen, you can easily change it; if your fingerprint data is compromised, it is compromised for life. For this reason, inherence should ideally be restricted to \textbf{local} authentication, acting as a mechanism to unlock a device's secure enclave (like FaceID on a smartphone) rather than transmitting biometric data to a remote server.
 \end{itemize}
-
-\paragraph{Digital authentication model}
-This model shows the steps that are executed each time we authenticate. It starts on the left, with applicant, which registers itself by presenting his documents (identity proofing) to the CSP (credential service provider), so we're registered.
-
-Then, after we login, the verifier checks. If it finds good, it sends an authN assertion token to the relying party, so now we're authenticated.
-
-But in some services it's not enough to use a password; in these cases, the verifier needs some other additional attributes, that could be retrieved from the CSP (e.g. are you entitled to this service?). If all is good, we get access to the resources of the relying party.
-
-A credential binds an authenticator to the subscriber (user), via an ID (e.g. student number).
-
-Note that these different actors in the model are separate, but sometimes they can run on the same machine, for example in a windows pc, the CSP and relying party are all on the same pc.
 
 \section{Passwords}
-\paragraph{Passwords}
-The server has a db that stores associations UID: password, or UID: hash of the password.
+Passwords remain the most widespread authentication mechanism. Typically, a server maintains a database linking users to their passwords.
 
-There are 2 cases:
-\begin{itemize}
-    \item $f$ = identify function (the server saves the passwords in clear); it must be protected very well. It's subject to sniffing: if password is sent in clear in a non-secure channel, the password will be easily intercepted. Also, replay attacks are possible: an attacker could replay password more times to create a DoS.
+If a server stores passwords in \textbf{plaintext}, it poses a high security risk. If an attacker breaches the server, the credentials of \textbf{all} users are compromised. Furthermore, if the password is transmitted over an unencrypted channel, it is vulnerable to network sniffing.
 
-    Another big problem for the server: if the server stores the passwords in clear, an attacker can steal the password for \textbf{all} users for that server, which would be a huge problem, both materially and for the reputation of the company.
-    
-    \item $f$ = one-way hash function (the server saves the \textbf{hash} of the passwords of the users). The client will still create and transmit the proof (password in cleartext). The server will calculate the hash of the password and compare it to its stored hash for that user, and see if they coincide.
+To mitigate database breaches, servers should store a \textbf{cryptographic hash} of the password using a one-way hash function. During login, the client transmits the plaintext password (ideally over a secure channel like TLS). The server calculates the hash of this received password and compares it to the hash stored in the database. If they match, authentication succeeds.
 
-    It's subject to replay attacks and dictionary attacks
-\end{itemize}
+\paragraph{The Dictionary Attack and Rainbow Tables}
+Even when passwords are hashed, they remain vulnerable to offline attacks if the database is leaked. Hypothesis: an attacker breaches the server and steals the database of hashed passwords, but does not know the plaintext passwords.
 
-\paragraph{Password-based authentication}
-Password managers today exists, they are a protected DB. They are protected with a password, and that password must be remembered!
+Because cryptographic hashes cannot be mathematically inverted, the attacker performs a \textbf{dictionary attack}. They take a massive list of common words, phrases, and leaked passwords, and pre-compute the hash for every single entry. Attackers often store these pre-computed hashes in massive databases called \textbf{Rainbow Tables}, which may take months to generate. Once built, the attacker simply searches their table for the stolen hashes. If a match is found, the underlying password is revealed.
 
-Password enumeration is when an attacker tries a lot of possible passwords with an automatic program. servers protect against this by putting a delay between 2 subsequent password insertion.
+\paragraph{Defending with Salts}
+The standard defense against dictionary attacks and Rainbow Tables is the use of a \textbf{salt}. A salt is a long, cryptographically secure random string. Instead of just hashing the password, the server generates a unique salt for \textit{each individual user}. The server appends this salt to the password before hashing it: $H(\text{password} + \text{salt})$. Both the resulting hash and the plaintext salt are stored in the database.
 
-Password duplication is when an attacker knows one password he knows for that user into another service, since the user might be reusing the password (humans do this).
+\textbf{How salts defeat pre-computation:} Because every user has a unique, random salt, two users with the exact same password will have completely different hashes. This renders the attacker's pre-computed Rainbow Table entirely useless. To crack the passwords, the attacker would be forced to compute a completely new dictionary table for \textit{every single user} based on their specific salt, making the attack computationally infeasible.
 
-How can we defend? With best practices:
-\begin{itemize}
-    \item use long passwords (at least 8 characters), with complex characters
-    \item never use real words (dictionary words) or common words, to avoid dictionary attacks.
-    \item Change them frequently (but not too frequently, otherwise we won't remember it). General recommendation: every 6 months or 1 year, depending on the amount of computational power an attacker owns.
+\paragraph{Verification Workflow with a Salt}
+When a user attempts to log in, the verifier performs the following operations:
+\begin{enumerate}
+    \item Receives the User ID (UID) and the plaintext password from the user.
+    \item Looks up the UID in the database to retrieve the user's unique \textbf{salt} and the stored \textbf{hash}.
+    \item Computes the hash of the provided password combined with the retrieved salt: $H(\text{password} + \text{salt})$.
+    \item Compares this newly computed hash with the stored hash. If they match exactly, the password is correct; otherwise, authentication fails.
+\end{enumerate}
 
-    \item Don't use passwords, but this depends on the task. There are particular solutions (authentication without password)
-\end{itemize}
-
-\paragraph{storing the passwords}
-In client side, ideally the password should be only in the user's mind. But since there are too many passwords, the user could use an encrypted file (or password wallet, or password manager).
-
-In server-side, the server should \textbf{never} store passwords in cleartext. Then, encrypted? Yes, but encryption implies using a key, so the server must now remember this \textbf{key} and protect it; if an attacker steals the key, he can decrypt all the passwords, so this is not a good solution.
-
-Another approach for the server is to store just the \textbf{digest} of the password, but this is weak to dictionary attacks, that can be made faster by a rainbow table. The protection vs this is the \textbf{salt}.
-
-\paragraph{The dictionary attack}
-This attack can be performed even if the server steals the hashes of the password. Hypothesis: the attacker doesn't know the password of the user, but he knows the server stored the hash of the password (calculated with algorithm $h$). Assume the attacker gets access to the DB containing the hashes of the passwords of the users. The attacker can't invert them because hash functions are mathematically not invertible, but he can pre-compute for each word in dictionary a hash, and store it in a DB. Note that in this case, dictionary contains all words on earth, not just a language. It also contains all words with alternations (like replacing "i" with a "1", or "o" with "0", and so on). This big DB may take years to build, but then it remains.
-
-After this, the attacker can read the HP: hash value of an unknown function. Then he can do the lookup (very simple operation) in this DB he computed. If he finds a match, then the password is found. Otherwise, the password is not in the dictionary of the attacker.
-
-The DB must be pre-computed, because it takes a lot of time to complete, and in the meantime the password could change.
-
-How to defend from dictionary attacks? With \textbf{salts}: the verifier must do this: for each user, the verifier will ask to create a password. The user will create a password and a salt, a long random string (containing weird characters) that is different for each user.
-
-Rainbow tables: even if the attacker uses them, the verified is protected if it uses the salt. The salt makes dictionary attacks near-impossible.
-
-In addition, there's another benefit to salt: 2 users with the same passwords will have different stored string in the DB.
-
-Verification with salt: the verifier does these operations:
-\begin{itemize}
-    \item reads UID and password from the user, as normal
-    \item lookup UID in the password DB to get hash of the password and salt.
-    \item compute hash of password+salt
-    \item if this hash is the same that is stored, then the password is correct. Otherwise, it's not.
-\end{itemize}
-It we don't user salt, we are subject to dictionary attacks.
 
 \section{Challenge-Response Authentication (CRA)}
-\paragraph{CRA}
-Passwords are far from perfect, in fact they're the weakest form of authentication. So, other authentication methods have been invented, and they involve cryptography. 
+While passwords are widely used, they have a critical flaw: the secret (even if hashed) must be transmitted across the communication channel. To avoid exchanging sensitive data directly, modern authentication methods leverage cryptography.
 
-In the password method, a password is always transmitted through the channel. So the channel must be protected very well.
+The \textbf{Challenge-Response Authentication (CRA)} mechanism operates on a simple premise: the user claims an identity, and the verifier presents a "challenge" that the user must solve. Because the solution requires a secret stored locally (like a symmetric or asymmetric key), the user proves possession of the secret without ever transmitting it over the network.
 
-On the other hand, in the \textbf{CRA} (Challenge-Response Authentication) method, no sensitive information is transmitted between the user (claimant) and the verifier. The user sends an ID, the verifier sends a challenge: none of these are sensitive information, and for this reason the CRA method for authentication is considered better than the password approach. 
-
-The claimer receives the challenge and computes a response to this challenge using a function $f$ and a secret the user has on his side. The verifier sees this response, and checks that this response matches one that the verifier has in its DB.
-
-The challenge must be \textbf{non-repeatable}, otherwise an attacker can sniff the first response, and use it for subsequent challenge request.
-
-Also, $f$ must be non-invertible (like a hash function), otherwise an attacker could infer the secret stored on the user's side by computing some operations on the result of $f$.
-
-\paragraph{Symmetric challenge-response systems}
-A challenge is sent to the claimant, who replies with a response computed using a symmetric function $f$, some shared secret key $K_{ID}$ (the secret), and the challenge. The server compares the received response with a solution computed via the secret key associated to the user.
-
-The easiest implementation uses a hash function (faster than encryption) for the function $f$, like sha1 (deprecated), sha2 (recommended), sha3 (future). But an HMAC function can also be used for the function $f$, for example in the TLS protocol.
-
-An issue with symmetric CRA is that the $K_{ID}$ must be known in cleartext to the verifier, so attacks against the {ID: $K_{ID}$} table at the verifier become possible. But solutions exists, e.g. SCRAM (Salted CRA Mechanism) solves this problem by using hashed passwords (KID) at the verifier.
-
-\paragraph{Asymmetric CRA}
-This method is also simple: a \textbf{random} challenge $C$ is sent to claimant. The claimant replies by signing and sending the response (thanks to knowledge of the corresponding private key: Kpri.ID).
-
-In particular, the challenge the verifier sends is a random nonce R, encrypted with the \textbf{claimant's public key} and an asymmetric algorithm (agreed between claimant and Verifier). So, only the claimant with its private key can decrypt and send back the random nonce.
-
-Asymmetric CRA is now considered the strongest authentication mechanism. Advantages:
+For CRA to be secure, two main properties must hold:
 \begin{itemize}
-    \item It does not require secret key storage at the verifier, so no attacks on it are possible, unlike symmetric CRA.
-    \item It's implemented for peer authentication in famous protocols, such as IPsec, SSH and TLS.
-    \item It's a cornerstone method for user authentication in FIDO (we'll see later).
+    \item The challenge must be \textbf{non-repeatable} (typically a random \textit{nonce} - number used once). If challenges were predictable or reused, an attacker could sniff a valid response and use it for subsequent authentication attempts (a \textbf{replay attack}).
+    \item The cryptographic function used to compute the response must be \textbf{non-invertible} (e.g., a cryptographic hash function). Otherwise, an attacker could intercept the response and reverse-engineer the locally stored secret.
 \end{itemize}
 
-However, the method is not perfect:
+Challenge-Response protocols can be implemented using either symmetric or asymmetric cryptography.
+
+\subsection{Symmetric Challenge-Response}
+In this method, both the user and the server share a secret key ($K_{ID}$) linked to the user's ID. The workflow is as follows:
+\begin{enumerate}
+    \item The user sends their ID to the server.
+    \item The server replies with a random challenge (a nonce).
+    \item The user computes a response by applying a function (often a fast cryptographic hash like SHA-256 or SHA-3) to the challenge and their shared secret key.
+    \item The user sends this computed response to the server.
+    \item The server, possessing its own copy of the shared key, computes the same function on the challenge. If the server's result matches the user's response, authentication succeeds.
+\end{enumerate}
+
+The primary vulnerability of symmetric CRA is that the verifier (server) must store the shared keys ($K_{ID}$) in \textbf{cleartext}. Consequently, if the server's database is breached, the attacker gains the keys for all users, completely compromising the system.
+
+\addfigure[Symmetric challenge-response schema]{/png/CRA-symmetric.png}{0.8}
+
+\subsection{Asymmetric Challenge-Response}
+This method eliminates the need for a shared secret by utilizing a pair of asymmetric keys (public and private) owned by the user. There are two primary variations:
+
+\paragraph{Method 1: Digital Signature}
+\begin{enumerate}
+    \item The user sends their ID, their \textbf{public key}, and a digital certificate validating that key.
+    \item The server verifies the certificate's validity with a Certificate Authority (CA).
+    \item The server generates and sends a random challenge (nonce) to the user.
+    \item The user \textbf{signs} the challenge using their \textbf{private key} and sends the signature back.
+    \item The server verifies the signature using the user's previously provided public key.
+\end{enumerate}
+
+\addfigure[Asymmetric challenge-response schema with digital signature]{/png/CRA-as1.png}{0.8}
+
+\paragraph{Method 2: Decryption}
+\begin{enumerate}
+    \item The user sends their ID, their \textbf{public key}, and a digital certificate.
+    \item The server verifies the certificate.
+    \item The server generates a random challenge (nonce), \textbf{encrypts} it using the user's \textbf{public key}, and sends the ciphertext to the user.
+    \item The user \textbf{decrypts} the challenge using their \textbf{private key}.
+    \item The user sends the decrypted (plaintext) challenge back to the server.
+    \item The server verifies that the received response matches the original challenge it generated.
+\end{enumerate}
+
+\addfigure[Asymmetric challenge-response schema with encryption]{/png/CRA-as2.png}{0.8}
+
+\paragraph{Advantages and Disadvantages}
+Asymmetric CRA is widely considered the strongest form of authentication. Because the verifier only stores or receives public keys, a server breach does not compromise user credentials. This robust security model is why asymmetric CRA is the foundation of peer authentication in major protocols like IPsec, SSH, and TLS.
+
+However, the method has some drawbacks:
 \begin{itemize}
-    \item It's slow: the parties have to perform asymmetric operations, and we know already that asymmetric cryptography is slower w.r.t. to the symmetric one. In particular, here the claimant will have to compute asymmetric operation using his private key, which is even slower than using the private key. So, in this schema, the performance burden is placed on the claimant.
-
-    \item PKI issues because we have to check for revocation: in step 6 (after the verifier receives the response), the verifier will check if the certificate has been revoked or not.
-
-    \item The PKI issues are avoidable if the verifier stores directly \texttt{Kpub.ID}. But this introduces about the same amount of overhead, because the verifier needs to store and manage all public keys.
-
-    \item Need to protect the list of users at the verifier for authentication and integrity.
-
-    \item Of course, the claimant needs to possess a device capable of performing asymmetric operations.
+    \item \textbf{Performance overhead}: Asymmetric cryptography operations are computationally heavier and slower than symmetric ones.
+    \item \textbf{PKI Dependency}: It relies heavily on Public Key Infrastructure (PKI) and third-party Certificate Authorities (CAs) to verify that a certificate is valid and has not been revoked.
+    \item \textbf{Hardware requirements}: The claimant must possess a device capable of securely storing a private key and performing complex asymmetric mathematical operations.
 \end{itemize}
 
-\paragraph{Note on the speed of symmetric vs asymmetric encryption}
-Asymmetric encryption is \textbf{much} slower and more computationally intensive than symmetric encryption due to the mathematics involved.
-
-In particular, with RSA, the asymmetric operations on the private key are slower than those on the public key primarily because of the mathematical operations involved and the typical key sizes used. In RSA, the private key operation involves a modular exponentiation with a large private exponent, which is computationally intensive.\\
-The public key operation, on the other hand, typically uses a small public exponent (like 65537), which significantly reduces the computational cost.\\
-This design choice is intentional: the public key operation needs to be fast for widespread use, such as in establishing secure connections, while the private key operation, which is used for decryption or signing, can afford to be slower due to its lower frequency of use.
-
-For ECC, the asymmetry between public and private operations is not as dramatic - both sides do similarly heavy scalar multiplications - but ECC is overall much faster than RSA anyway.
 
 \section{One-Time Passwords (OTPs)}
-\paragraph{OTP}
-A OTP is used when a person wants to be authenticated without having to calculate anything: no cryptographic operation on user-side. This method is better than static passwords, because the OTP is valid just once.
+A \textbf{One-Time Password (OTP)} is an authentication string that is valid for only a single login session or transaction. From the user's perspective, this method requires no manual cryptographic calculations. It offers a significant security upgrade over static passwords because it is inherently immune to \textbf{sniffing and replay attacks}: even if an attacker intercepts the password in transit, it becomes useless the moment it is used.
 
-How it works: in the standard OTP model the user has many OTP passwords, each usable only once. So, the approach is immune to sniffing because each password can be used only once.
-
-They still have some disadvantages:
+However, standard OTPs still present several challenges and disadvantages:
 \begin{itemize}
-    \item Password is valid just once; the next run of the protocol requires another password.
-    
-    \item Subject to MITM: if the OTP gets to a man in the middle, he can use it.
-
-    \item Lots of passwords. Also, they will run out at a certain point (password exhaustion).
-
-    \item The insertion of the password can be difficult, since the password is made of random characters, to avoid guessing.
+    \item \textbf{Single-use limitation}: The password is valid for just one authentication attempt; every subsequent login requires a completely new password.
+    \item \textbf{Susceptibility to Real-Time MITM}: While immune to offline replay attacks, OTPs are still vulnerable to active Man-in-the-Middle (MITM) attacks or real-time phishing. If an attacker intercepts the OTP and uses it instantly (before the legitimate user does), they can hijack the session.
+    \item \textbf{Password exhaustion}: If using a pre-generated list, the user will eventually run out of passwords and need a new batch.
+    \item \textbf{Usability}: OTPs are typically random alphanumeric strings designed to resist guessing, making them difficult and tedious for users to type manually.
 \end{itemize}
 
-Nowadays, there are 2 solutions for provisioning OTP to the users:
+\paragraph{OTP Provisioning Methods}
+To solve the problem of generating and distributing these passwords, the industry relies on two primary provisioning solutions:
 \begin{itemize}
-    \item On a stupid or \textbf{insecure} workstation (e.g. if the claimant is in a hotel, we can use the internet workstation): a password card (in the past, not used anymore), delivered from the verifier to the user. The card contained many one time passwords. Instead, nowadays a \textbf{crypto token} is used (hardware authenticator that generates trusted OTPs).
- 
-    \item On an intelligent or \textbf{secure} workstation, like a smartphone: this device can generate OTP automatically using an app.
+    \item \textbf{Hardware Authenticators (Crypto Tokens)}: Dedicated physical devices (like RSA SecurID) that generate trusted OTPs on demand. Historically, verifiers distributed physical "password cards" (e.g., scratch cards or grid cards) containing a printed list of OTPs, but these are now obsolete due to physical security risks and exhaustion.
+    \item \textbf{Software Authenticators}: An app running on a smart device (like a smartphone). The device computes the OTP locally. While highly convenient, this requires the device to be secure; if the smartphone is infected with malware, the attacker could silently generate an OTP and authenticate in the background.
 \end{itemize}
 
-\paragraph{Time-based OTP}
-This is a variant of the OTP. Now they are generated using also time.
+\subsection{Time-Based One-Time Passwords (TOTP)}
+To eliminate the need to distribute lists of passwords, modern systems predominantly use \textbf{Time-Based OTPs (TOTP)}. In this model, the user's device and the server share a secret seed. The OTP is generated on the fly by computing a cryptographic hash of this shared secret combined with the \textbf{current time}.
 
-Time-based OTP solve partly the OTP provisioning (no need to distribute password cards), but they have disadvantages:
+While TOTPs solve the exhaustion and distribution problems, they introduce new technical challenges:
 \begin{itemize}
-    \item The user (subscriber) has to compute a real-time password. The hardware authenticator has a cost, and ad-hoc applications (that are free) must be run only on secure devices. For example if the device has a malware, it can generate a OTP and then immediately authenticate instead of you.
-
-    \item Some seconds pass in the meantime: the verifier has to accommodate some delay. So, a \textbf{time-slot} needs to be defined. Typically 30 or 60 seconds (not good for some services). The verifier also has to recalculate the OTP of the current time slot, the earlier one (-1) and the next one (+1), because the time slot might not be the same.
-
-    \item Fake NTP server attacks (time attacks) are possible. Smartphones take the time typically from the base station of the mobile operator. An attacker could put in place a very small antenna that is able to transmit a fake time in a small area (10-15 meters), to de-synchronize the smartphone.
+    \item \textbf{Device dependency and security}: The user must possess a computing device (hardware token or smartphone) to generate the real-time password. As mentioned, running authenticator apps on a general-purpose smartphone exposes the credential generation process to mobile malware.
+    \item \textbf{Time synchronization and drift}: Because generating the OTP relies on the current time, both the user's device and the server must be synchronized. To accommodate slight clock differences and network delays, the protocol defines a \textbf{time-step} (or time-slot), typically 30 or 60 seconds. The verifier server usually accepts the OTP for the current time-step ($T$), as well as the immediately preceding ($T-1$) and following ($T+1$) time-steps.
+    \item \textbf{Time manipulation attacks}: An attacker can exploit the time dependency by desynchronizing the victim's device. For example, smartphones often synchronize their clocks via the mobile network or Network Time Protocol (NTP). An attacker could deploy a rogue base station (IMSI catcher) or spoof NTP packets within a local radius (10-15 meters) to feed the device a fake time. This could cause the device to generate future OTPs, which the attacker can harvest and use later.
 \end{itemize}
-
-
-\paragraph{RSA SecurID}
-RSA is the company founded by the inventors of RSA. This company created SecurID, a TOTP approach. The same company also created a software called ACE (Access Control Engine).
-
-\paragraph{OOB OTP}
-This is definitely the most used method today to implement OTPs.
-
-\section{Authentication of human beings}
-...
-
-\paragraph{problems of biometric systems}
-There is always some difference between the biometric we had when we enrolled, and the one we use, for example out fingerprint can we different if we have a wound, or if the finger is wet, and so on. The question is: how big is an acceptable difference?
-
-If it's too big, we will have a higher false acceptance rate. If it's too small, we will have a higher false rejection rate. So a tradeoff needs to be made.
-
-Psychological acceptance: people don't want to use biometric systems because of big brother syndrome: they don't like other people collecting personal information about them.
-
-So, typically biometric measurements \textbf{only} need to be used \textbf{locally}, they never should be sent over a wire. Because our biometric characteristics are not replaceable, so they shouldn't be stolen.
-
-There is a lack of a standard API/SPI for biometric systems, so there are high development costs and heavy dependence on a single or few vendors.
-
-\section{HOTP and TOTP}
-\paragraph{HOTP}
-\paragraph{TOTP}
-
-\paragraph{Google authenticator}
-Google authenticator is an app that supports HOTP and TOTP with the following assumptions: ...
-
-This solution works like this:
-\begin{itemize}
-    \item key
-    \item counter
-    \item selection function \texttt{sel(X)}
-\end{itemize}
-
-\section{FIDO}
-\paragraph{FIDO registration}
-The public key is registered in the website. But the private key \textbf{never leaves the device}: it always stays in the smartphone, which is unlocked only by the user.
-
-In this case there is no digital certificate, no CA: just the user creating an asymmetric key pair.
-
-The server has to have a FIDO backend, that generates the challenges and verifies the responses.
-
-In FIDO, phishing is not effective because the login works like this: the credential only works for a specific transaction, which is bound to the challenge. Phishers can't take authentication form another sessions: it would be useless.
-
-FIDO is considered the strongest authentication, and it uses asymmetric cryptography. it has no 3rd party in the protocol, no secrets on the server side; biometric data (if used) never leaves the device; and it combats phishing because authN response can't be reused.
-
-From the privacy point of view we also have some advantages; no linkability among:
-\begin{itemize}
-    \item different services used by the same user
-    \item different ... used by the same user
-\end{itemize}
-
-\paragraph{FIDO 2.0}
-We can use a TPM (special hardware that is often present in modern computers) to perform FIDO authentication.
-
-
-----------------------------------------------------------------------
-----------------------------------------------------------------------
-
-\clearpage

@@ -14,7 +14,7 @@ These are some terms that must be known:
 Encryption is a process used to ensure confidentiality of a message. The encryption algorithms can be divided into 2 categories: symmetric and asymmetric.
 
 \section{Symmetric cryptography}
-In symmetric cryptography, there is a single shared key $K$ between the two parties: the sender who encrypts the data and the receiver who decrypts it. This key must be kept secret. To protect the data, the sender inputs the plaintext message into the encryption algorithm along with the secret key $K$.
+In symmetric cryptography, there is a single and shared key $K$ between the two parties: the sender who encrypts the data and the receiver who decrypts it. This key must be kept secret. To protect the data, the sender inputs the plaintext message into the encryption algorithm along with the secret key $K$.
 The encrypted message (ciphertext) is then transmitted, and the receiver applies the decryption algorithm using the \textbf{same key $K$} to recover the original message.
 
 Note that this mechanism primarily ensures \textit{confidentiality}—meaning only those who possess the key can read the message. It does not inherently guarantee \textit{integrity}. If an attacker intercepts and modifies the ciphertext in transit, the receiver may not be able to detect the tampering (the fact that the message might decrypt into garbled nonsense is not a strict or secure definition of integrity).
@@ -81,7 +81,7 @@ Formula: $C_i = E_K(P_i)$
     \item The attacker can discover the secret key by simply comparing the intercepted ciphertext blocks with the precomputed ciphertexts saved in the database from step 1. Once a match is found, the key is revealed.
 \end{enumerate}
 
-\subsubsection{CBC (Cipher Block Chaining) mode}
+\subsubsection{CBC (Cipher Block Chaining) mode} \label{mode:CBC}
 To fix the pattern leakage inherent in ECB, CBC introduces chaining. Before being encrypted, each plaintext block is XORed with the previously generated ciphertext block.
 Formula: $C_i = E_K(P_i \oplus C_{i-1})$\\
 \textbf{Initialization Vector (IV):} Because the very first plaintext block ($P_1$) does not have a "previous ciphertext block," a random IV is used as a stand-in for $C_0$.
@@ -272,260 +272,138 @@ Both parties remain completely unaware of the breach, falsely believing they are
 
 \addfigure[DH schema]{png/DH-MITM.png}{0.8}
 
-\section{Digest}
+\subsection{Elliptic curve cryptography}
+Elliptic curve cryptography is based on the same algorithm that we already saw but instead of using modular arithmetic, the operations are executed on
+the surface of a 2D (elliptic) curve.
+%<insert advantages and disadvantages>
 
+\section{Message integrity}
+So far, we have explored how encryption ensures confidentiality, restricting message access to only the sender and the intended receiver. However, another significant threat arises if an attacker intercepts and modify the message in transit. While decryption might fail or produce unreadable data, relying on the decryption process itself to detect tampering is inefficient. In this chapter, we will examine how a small piece of auxiliary information can be used to verify message integrity \textit{before} decryption. The fundamental approach to achieving this is through the use of a digest, that is a fixed-length summary of a message of arbitrary length (even gigabytes), generated using a cryptographic hash function.
 
-
-
-
-
-
-% ---------------------------------------------
-
-
-\section{Integrity - digest}
-Let's move from confidentiality to integrity. An attacker can intercept a message between two hosts and modify it, before it gets to the receiver. Let's understand how to avoid this problem.
-
-\paragraph{Digest}
-A \textbf{digest} is used to verify that the received message was the same that was sent (to achieve integrity). Normally, the receiver can't just look at a part of the data to ensure integrity, because a piece of data doesn't tell everything about the whole data. Instead, with this proposed method, the receiver only has to check the digest to ensure integrity of the whole message!
-
-The message digest is a \textbf{fixed-length} "summary" of the message $m$ to be protected (of any length, even GBs). It's calculated via a cryptographic hash function $h$. Such functions have a property: it's easy to compute the output $md=h(m)$, but very hard to invert.
-
-Hash functions map from a \textbf{huge} message space (source space) to a relatively small hash space (values).
-
-An ideal hash function must have the following properties:
+\subsection{Cryptographic Hash Functions}
+A cryptographic hash function is an algorithm that accepts an input message of arbitrary length and maps it to a fixed-length output, commonly referred to as a digest. An ideal cryptographic hash function must exhibit the following core properties:
 \begin{itemize}
-    \item Fast to compute the digest
-    \item Impossible or very difficult to invert (obtain $m$ out of $md$
-    \item Difficult to create "collisions", i.e. obtaining the same digest for two different messages.
+    \item \textbf{Computational Efficiency:} It must be fast to compute the digest for any given message, regardless of its length.
+    \item \textbf{Pre-image Resistance (One-Way):} It must be computationally infeasible to invert the function (i.e., to derive the original message from its digest).
+    \item \textbf{Collision Resistance:} It must be computationally infeasible to find two distinct messages that result in an identical hash output.
 \end{itemize}
-In addition to these three properties, a good hash function is one such that changing a single bit of input results in entirely unpredictable output changes.
+Furthermore, in a robust hash function altering even a single bit of the input produces an entirely unpredictable output. Consequently, a hash function serves as a compact, reliable summary of a message, enabling the receiver to verify data integrity efficiently.
+Let's see an application of Hash Functions for Integrity Verification.
+Consider an object $A$ (e.g., a file, document, or email) whose integrity must be preserved. Initially, the system computes the message digest, $md = h(A)$, and stores this value in a \textbf{secure} location.
 
-\paragraph{How to use hash functions in practice to check integrity}
-Let's assume we want to protect the integrity of an object $A$ (file, document, email, etc.). We can first compute the hash file $md = h(A)$ and store the hash value ($md$) in a \textbf{secure} place.
+Once the digest is secured, the original data $A$ can be stored or transmitted across an insecure environment. To verify the object's integrity at a later time, the system recomputes the hash of the current object and compares it against the securely stored digest $md$. If the two values diverge, it indicates an unauthorized modification, and so a violation of data integrity. Crucially, the digest itself must remain strictly protected; if an adversary gains write access to the digest storage, they could trivially alter the original data, compute a new valid digest, and replace the original, so that the modification goes unnoticed.
 
-Now, we can keep the data $A$ even in a non-secure place, because before using an object (file, document, etc.), the system re-computes a hash of the object and compares it to the stored hash. If these 2 hash values do not match, the object was probably changed in an unauthorized manner: no integrity.
-
-If the hash is not in a secure storage, the attacker can read the data, re-compute the hash and use his hash instead of ours.
-
-\paragraph{How does hash function compute output}
-Usually, these functions split the message $M$ in $N$ blocks, iteratively apply a base function $f$ to each block and another piece ($f$ takes 2 input and has 1 output). The final iteration produces the hash.
-
-Nowadays, algorithms from the SHA-2 family are commonly used.
-
-\paragraph{Collision}
-Collision is a situation where different messages have the same hash value. It's a problem because it means that the system compares $h(A)$ with a $h(A')$ and they coincide, so the system will think $A=A'$. So we want algorithms that avoid / minimize this problem.
-
-\paragraph{Digest length}
-It's important to avoid \textbf{aliasing} (collisions): $md_1 = h(m_1)$, $md_2 = h(m_2)$; if $m_1\neq m_2$, then we'd like to have $md_1\neq md_2$.
-
-If the algorithm is well designed and generates a digest of $N$ bits, then the probability of aliasing is:
-\[P_A\propto \frac{1}{2^{N}}\]
-So, digests with many bits are required, because statistical events are involved.
-
-Because of the birthday paradox, this probability to find a collision $P_A$ does not depend only on the inverse of $2^N$, but is actually \textbf{higher}.
-
-\paragraph{Birthday attack}
-After $2^{\frac{N}{2}}$ tries (hashes), an attacker finds a collision with probability $P_A \approx 50\%$. So, a $N$-bit digest algorithm is insecure if that many digests have been generated. For example, the SHA-1 algorithm has been broken February 2005.
-
-
-... parte persa ...
-
-
-\paragraph{MAC, MIC, MID}
-Nowadays, we find 3 frequent terms in security (in integrity and authentication): MIC, MAC, MID.
-
-To guarantee the integrity of messages, a \textbf{MIC} (Message Integrity Code) is added to the message. But just attaching a MIC to the data for integrity is not enough, because it doesn't assure authentication. So, the MIC is actually replaced by a \textbf{MAC} (Message Authentication Code), that ensures both integrity and authentication. Finally, to avoid replay attacks, a unique identifier can be added to the message: MID (Message ID).
-
-\paragraph{Authentication by means of keyed-digest}
-There are many ways of authenticate, one of them is the keyed-digest. The sender sends data and a keyed-digest to the receiver, obtained by hashing the sent data together with the shared secret key. The receiver re-calculates the keyed digest on his side, and check if it matches the keyed-digest sent by the sender. If they do, we achieved both integrity (because if the digest) and authentication. Other advantages are: only one operation (digest), and few additional data (keyed-digest, which is a fixed length depending on the hashing algorithm, because it's a digest).
-
-Note that the keyed-digest does not achieve non-repudiation: both the sender and the receiver have all the ingredients to compute the keyed digest, not only the sender. So the sender \textbf{can} deny in a court that he created a keyed-digest.
-
-Keyed-digest approaches have possible mistakes: An attacker could add a block (remember hash functions work on blocks) at the end of the data or before the data. Protections:
+\paragraph{MAC, MIC, and MID}
+Appending a cryptographic code to a message to guarantee specific security properties is a fundamental practice in security. This methodology relies on three distinctly defined terms:
 \begin{itemize}
-    \item Inset in the digested data also the length of M
-    \item define $kd = H(K || M || K)$
-    \item Use a \textbf{standard} keyed-digest algorithm, e.g. HMAC (the best solution).
+    \item Message Integrity Code (MIC): A mechanism used exclusively to verify that a message has not been altered in transit, thereby ensuring data integrity.
+    \item \textbf{Message Authentication Code (MAC):} A keyed cryptographic checksum used to verify both the integrity of the message and the authenticity of its sender. Because it inherently relies on a shared secret key, it prevents unauthorized parties from generating a valid code.
+    \item Message Identifier (MID): A unique value (such as a sequence number, timestamp, or nonce) attached to a message to ensure its uniqueness within a session, effectively protecting the system against replay attacks.
 \end{itemize}
 
-\paragraph{HMAC}
-HMAC is a standard algorithm used to calculate a keyed-digest. It uses internally a hash function $H$ and a key $K$. The algorithm works on blocks of size $B$ bytes. The output has size $L$ bytes, with $B>L$.
+\subsection{Keyed Digest}
+A keyed digest is a mechanism used to generate a Message Authentication Code (MAC), ensuring both data integrity and origin authentication. It relies on a secret key shared between the sender and the receiver, alongside a mutually agreed cryptographic hash function.
 
-If the length of the key is smaller than the length of output ($|K|<L$) we have 2 cases:
-\begin{itemize}
-    \item If $|K| > B$ then ...
-\end{itemize}
+First, the sender computes the digest $md$ over both the message $M$ and the shared secret key $k$. The sender then transmits the message $M$ along with the resulting digest $md$. Then, the receiver computes a new digest $md'$ using the received message $M$ and the same shared key $k$. If the computed digest matches the received digest ($md = md'$), the receiver is assured that the message originated from a party possessing the secret key and that it was not altered in transit.
 
-Note that HMAC can use different hash functions, depending on how it's configured.
+\addfigure[keyed digest schema]{png/keyed-digest.png}{0.8}
+
+There are two critical limitations to note regarding this approach:
+\begin{enumerate}
+    \item \textbf{Lack of Non-Repudiation:} Because both the sender and the receiver possess the shared secret key, either party has the necessary information to compute a valid keyed digest. Consequently, the receiver cannot prove to a third party that the sender (and not the receiver themselves) created the message.
+    \item \textbf{Data Origin Authentication vs.\ Peer Authentication:} This method authenticates the origin of the specific data packet, but it does not intrinsically authenticate the identity of the peer in a broader session context.
+\end{enumerate}
+
+\paragraph{Vulnerabilities and HMAC}
+A naive implementation of a keyed digest---such as simply concatenating the key and the message ($h(k \parallel M)$ or $h(M \parallel k)$)---is highly vulnerable to tampering. Many hash functions process data sequentially in blocks. This structure makes them susceptible to \textit{length extension attacks}. If an attacker intercepts the message and the hash, they can append malicious data to the end of the original message and compute a new, valid digest without needing to know the secret key.
+To counter these vulnerabilities, the Hash-based Message Authentication Code (\textbf{HMAC}) standard was developed. HMAC securely incorporates the secret key by hashing the data twice using a specific nested construction, effectively neutralizing length extension attacks and providing a robust MAC.
 
 \paragraph{CBC-MAC}
-CBC-MAC stands for Cipher Block Chaining Message Authentication Code, a cryptographic technique that uses a block cipher to create a tag that verifies a message's authenticity and integrity. It works by encrypting a message in blocks, where each block's encryption depends on the previous block's ciphertext. The final ciphertext block is then used as the message authentication code.
+CBC-MAC is another cryptographic mechanism used to generate a MAC. As we've already seen in the \hyperref[mode:CBC]{CBC mode section}, it works by encrypting a message in blocks, where each block's depends on the previous block's ciphertext. This time, the final ciphertext block is then used as the message authentication code.
 
-We split our data $M$ in $N$ blocks. Then we have the iterations of the CBC encrypt, with initialization vector IV equal to 0. We perform encryption with CBC mode: first we XOR, then we encrypt. $V_N$, the value of the encryption of the last block, will be our keyed-digest.
+\addfigure[CBC-MAC schema]{png/CBC-MAC.png}{0.8}
 
-CBC-MAC is good only with fixed-length messages. In other cases, we use CMAC.
+\subsection{Key derivation function}
+One the of usage of hash function is to generate secure keys. As the name suggest, a key derivation function (KDF) is a function used to generate a random and secure key that can be used in both symmetric and asymmetric cryptography. The most popular one is password-based key derivation function 2 (PBKDF2), that needs:
 
-\paragraph{Integrity and secrecy}
-Often we want to achieve confidentiality (secrecy) and integrity, how can we combine them together? For confidentiality we should \textbf{encrypt the data} using key $K_1$, for integrity we can use a keyed-digest (MAC) with key $K_2$ (it's recommended to use 2 different keys of course).
+\begin{itemize}
+    \item password: chosen by the user
+    \item salt: that is a random sequence of bytes
+    \item hash function
+    \item number of iterations: that the hash function is computed
+    \item desired key length
+\end{itemize}
 
-The question is how to combine these operations. The first option is \textbf{A\&E}: authenticate and encrypt. Assume we want to protect our data $p$. We encrypt it an we concatenate it with the MAC. It's not perfect, because the receiver must always decrypt before checking integrity (i.e. recompute the hash and compare it to the keyed-digest), so a possible DoS attack is open, because the receiver has to do a lot of operations. Moreover, it's been demonstrated that this approach may leak info about the plaintext. Nevertheless, SSH adopts this method.
+Using this technique a password chosen by the user can be transformed into a key to be used for cryptography but, the password must be secure.
 
-Let's now look at option 2: authenticate-then-encrypt (AtE). The sender first authenticates, then encrypts. He will send to the receiver only this cipher text. The receiver still is forced to decrypt before checking integrity (so DoS is still possible), but information leakage is not possible anymore. This approach is used by SSL and TLS.
 
-Option 3: encrypt-then-authenticate (EtA). The sender first encrypts the data with $K_1$, then he calculates the MAC on the encrypted data, using key $K_2$. This can avoid decryption in the receiver if the MAC is wrong (i.e. integrity is checked very quickly, before decryption). This approach is used by IPsec. This is the most secure mode, but we need to be very careful of the implementation errors: always include IV and algos in the MAC computation.
+\subsection{Combining Secrecy and Integrity}
+In secure communications, it is often necessary to guarantee both confidentiality (secrecy) and data origin authentication (integrity). Assuming these are handled as distinct operations---using symmetric encryption with a key $K_1$ for secrecy, and a Message Authentication Code (MAC) with a separate key $K_2$ for integrity---there are three primary paradigms for combining them.
 
-Nowadays we have an alternative: \textbf{authenticated encryption} algorithms (joint AE). This algorithm performs one single operation that achieves both properties, not with 2 operations as we saw until now. Moreover, this algorithm only needs one key.
+It is a fundamental rule in cryptography that improperly combining two secure algorithms can yield an insecure result. The three standard approaches and their security implications are as follows:
 
-\paragraph{RFC 5116 - authenticated encryption with associated data (AEAD)}
-In AEAD we only encrypt the payload, because the data in the header must remain in clear, otherwise the routers can't route the packet to the destination.
+\begin{itemize}
+    \item \textbf{Authenticate-and-Encrypt (A\&E):} In this approach, the sender computes the ciphertext and the MAC of the plaintext independently, and then concatenates them: $enc(K_1, p) \parallel mac(K_2, p)$.
+    \begin{itemize}
+        \item \textit{Security Implications:} The receiver is forced to decrypt the message before verifying its integrity. Additionally, computing the MAC directly on the plaintext may inadvertently leak information about the message content. Generally, A\&E is considered insecure unless the operations are tightly coupled in a single step.
+    \end{itemize}
 
-The nonce protects from \textbf{replay} attacks. The tag is the keyed-digest.
+    \item \textbf{Authenticate-then-Encrypt (AtE):} Here, the sender first computes the MAC of the plaintext, appends it to the plaintext, and then encrypts the entire package: $enc(K_1, p \parallel mac(K_2, p))$.
+    \begin{itemize}
+        \item \textit{Security Implications:} Utilized by protocols like SSL and TLS, this method also requires the receiver to perform decryption before the integrity check can occur. Cryptographically, AtE is only proven secure when paired with specific encryption modes, such as Cipher Block Chaining (CBC) or stream ciphers.
+    \end{itemize}
 
-\paragraph{IGE (Infinite Garble Extension)}
-This is a mode that's not often used (only in didactic environments), AEAD is actually used.
+    \item \textbf{Encrypt-then-Authenticate (EtA):} In this paradigm, the sender encrypts the plaintext first, and then computes the MAC over the resulting ciphertext: $enc(K_1, p) \parallel mac(K_2, enc(K_1, p))$.
+    \begin{itemize}
+        \item \textit{Security Implications:} This is widely regarded as the most robust and secure mode, and it is the standard utilized by IPsec. Its primary advantage is that the receiver can evaluate the MAC \textit{before} attempting decryption. If the integrity check fails, the corrupted ciphertext is immediately discarded. However, implementers must still avoid errors; for instance, the Initialization Vector (IV) and algorithm identifiers must always be included in the MAC computation.
+    \end{itemize}
+\end{itemize}
 
-The main idea is to include a control block as the last block. If an attacker corrupts a block, the error propagates on all blocks until the control block. So the receiver just checks the control block to understand if the data has been mangled or not.
+\paragraph{The Shift to Authenticated Encryption (AE)}
+Given the historical pitfalls and complexities of safely combining separate encryption and MAC schemes, modern cryptographic efforts have heavily shifted toward joint \textbf{Authenticated Encryption (AE)} algorithms. These algorithms are specifically designed to provide both confidentiality and authenticity simultaneously, minimizing the risk of implementation errors.
 
-ISO/IEC defines 6 standard modes to achieve authenticated encryption. One of these is GCM, which uses a short tag (128), because the algorithm authenticates and encrypts anyway with the key. GCM is defined for algorithms with 128-bit blocks, so we can't use it with 64-bit blocks algorithms for example.
-
-\paragraph{CCM}
-Another mode for AEAD is CCM: Counter-mode with CBC-MAC. It works by first creating the authentication tag of plaintext + associated data with CBC-MAC, then we encrypt separately plaintext and tag in CTR mode. This mode is widely used in security protocols, like TLS-1.3 and 802.11i (wi-fi security protocol).
-
-\section{Authentication + integrity - digital signatures and certificates}
-\paragraph{Digital signature}
+\section{Digital signatures and certificates}
+\subsection{Digital signature}
+\textbf{Digital signature} is a method similar to the one we saw before to verify integrity with a digest and a symmetric key, but it is performed with a pair of asymmetric keys. The steps are the following:
 \begin{itemize}
     \item The sender hashes the data he wants to send, to produce a message digest $md$.
     \item The $md$ undergoes asymmetric encryption using the private key, and the result is a \textbf{digital signature}. This ensures authentication (the key is private, only the sender has it) and integrity (digest).
     \item The receiver receives the data and re-computes the hash $md_R$, while decrypting the received digital signature (asymmetric decryption) to obtain $md_R$.
     \item The receiver compares $md_R$ and $md_S$. If they're the same, then the data has not been modified and it comes from the right sender, because only the sender had that private key.
 \end{itemize}
-This method also achieves \textbf{non-repudiation}, because only the sender has that private key, so he can't deny of having created that digital signature.
+This method achieves integrity but also \textbf{non-repudiation}, because only the sender has that private key, so he can't deny of having created that digital signature.
 
-In practice, data and digital signature travel together, for example Adobe defined its own format to put together data and signature in a pdf. The sender is called \textbf{signer}, and the receiver \textbf{verifier}.
+\addfigure[Digital signature schema]{png/digital-signature.png}{0.8}
 
-An attacker could modify some bits in the sent data to alter the message digest calculated by the receiver, or he could modify some bits in the digital signature, to alter the result of the decryption. Also, he could alter the public key: if the public key is not the one associated with that private key, the decryption won't work the same.
+\subsection{Public certificate and infrastructure}
+In asymmetric cryptography, a fundamental vulnerability is the Man-in-the-Middle (MitM) attack. If an entity, Alice, wishes to communicate securely with Bob, she must obtain Bob's public key. However, if an adversary Eve, intercepts the key exchange and substitutes her own public key for Bob's, she can decrypt, read, and re-encrypt the traffic without detection. Public Key Certificates were introduced to solve this authentication problem by cryptographically \textbf{binding} an entity's identity to their public key, ensuring that the key genuinely belongs to the claimed owner.
+A public key certificate functions much like a digital passport. It is a data structure containing an entity's identity details and their public key, which is then digitally signed by a \textbf{trusted third party}, and this is why we need Certification authority.
 
-Another possible attack is making the receiver use a different hash function or a different decryption algorithm from the ones used by the sender.
+A Certification Authority (CA) is the trusted third party responsible for verifying identities and issuing public key certificates. Before issuing a certificate, the CA verifies the identity of the applicant. CAs operate in a hierarchy, where a ``Root CA'' signs the certificates of ``Intermediate CAs,'' which in turn sign end-entity certificates. This creates a verifiable \textit{Chain of Trust}.
 
-\paragraph{Digital vs handwritten signature}
-Digital signature = authentication + integrity, while handwritten signature = authentication.
-
-So, the digital signature is better, because it is tightly bound to the data, while the handwritten signature isn't, so one can add more text after a person has signed by hand.
-
-Note that each user does not have a digital signature, but just a \textbf{private key}, which can be used to generate an infinite amount of digital signatures (one for each different document).
-
-Also, digital signatures can't be copied, unlike the handwritten signature that can be screenshot and cut-paste anywhere by some malicious user. The digital signature only works on the specific document it was generated for.
-
-\paragraph{Public key certificate}
-Let's see how to bind a public key to an entity (person, node). In the case of a digital signature, it's mandatory, in order to achieve non-repudiation. There are some solutions:
+\paragraph{The X.509v3 Standard}
+X.509 is the internationally recognized standard defining the format of public key certificates. Version 3 (X.509v3) is the current and most widely used iteration. It defines a strict ASN.1 data structure containing several mandatory fields:
 \begin{itemize}
-    \item out of band: you meet in person and you bind this way. But of course this doesn't scale to big groups.
-
-    \item ?
-\end{itemize}
-The public key is like a \textbf{passport}, so they must be issued by some authority: the Certification Authority (CA). On large scale, public keys are handled by \textbf{public key infrastructures}.
-
-The public keys have a limited lifetime, like real life passports. Normally these keys last for more or less 1 year.
-
-The CA can revoke one entity's key.
-
-\paragraph{Formats for public key certificates}
-There are formats but they're not all used, some are deprecated by now. Today, the X.509 is the most widely used.
-
-\paragraph{Structure of a X.509v3 certificate (simplified)}
-There is a string called "distinguished name", that contains:
-\begin{itemize}
-    \item C (country), fixed
-    \item O (organization)
-    \item OU (organization unit)
-\end{itemize}
-This happens because x509 is a derivation from the x500 standard: in the x500 every object in internet should have a unique identifier. Then we have the CN (common name), and the email.
-
-Important: the email field is included in the certificate because in the certificate we must include the information that is meaningful to use it with applications.
-
-Then there are other extensions:
-\begin{itemize}
-    \item CRLDP
-    \item ...
+    \item \textbf{Version:} Indicates the X.509 version (v3).
+    \item \textbf{Signature Algorithm Identifier:} The cryptographic algorithm used to sign the certificate (e.g., SHA-256 with RSA).
+    \item \textbf{Issuer Name:} The distinguished name of the CA.
+    \item \textbf{Validity Period}
+    \item \textbf{Subject Name}
+    \item \textbf{Subject Email}
 \end{itemize}
 
-\paragraph{PKI: Public-Key Infrastructure}
-Public certificates were invented by a student (Ralph Merkle?) in 1978 while he was working on his graduation thesis.
 
-PKI is a technical infrastructure (algorithms, etc.) but also administrative: issuing a certificate is important on a organizational level, and it's important to correctly identify the entity to which we're giving the public key.
-
-\paragraph{Certificate revocation}
-Any certificate can be revoked before its expiration date: either by request from the owner (for example if they stole it, like with the credit card), or autonomously by the issuer (for example if the key was wrongly issued, or if the key is used to provoke attacks).
-
-Attacks exploiting fake keys happen (fraudulent key attacks).
-
-Digital certificates have 2 big use cases:
+\paragraph{Revocation Mechanisms}
+A certificate is issued with a specific validity period, but it may need to be invalidated before it naturally expires. This occurs if the private key is compromised, if the entity changes its affiliation (e.g., an employee leaves a company), or if the CA itself is compromised. PKI utilizes specific mechanisms to check the revocation status of a certificate. There are two revocation mechanisms:
 \begin{itemize}
-    \item to verify (?)
-    \item to authenticate
+    \item \textbf{Certificate Revocation List (CRL)}: A CRL is a time-stamped, CA-signed list containing the serial numbers of certificates that have been revoked. It is simple to implement and distribute.
+    \item \textbf{Online Certificate Status Protocol (OCSP)}: Instead of downloading an entire list, a client sends an HTTP request to an OCSP responder containing the serial number of the certificate in question. The responder replies with a signed status: \textit{good}, \textit{revoked}, or \textit{unknown}.
+
 \end{itemize}
-i.e. they can be used to demonstrate that a document is authentic and coming from the sender we expect.
 
-\paragraph{Revocation mechanisms}
-Nowadays, there are 2 revocation mechanisms, i.e. ways to know if a certificate has been revoked or not:
-\begin{itemize}
-    \item CRL (Certificate Revocation List): a big list of revoked certificates, that grows over time. This list itself is digitally signed, to ensure integrity (avoid its modification) and authenticity. The CRL is indicated in the certificate itself, in the CRLDP extension.
-
-    \item OCSP (Online Certificate Status Protocol).
-\end{itemize}
-The Certificate Revocation List (CRL) can grow significantly in size, yet it is useful because it shows whether a certificate was valid or invalid \textbf{at any given point in time} we wish to verify. The CRL must be part of the certificate whenever it is utilized.
-
-The OCSP instead works this way: you make a query to a OCSP server sending a certificate, and it responds saying wether that certificate is \textbf{currently} valid, invalid, or it doesn't know. This is used if you need a fast answer, for example when you pay in the supermarket with your credit card, the POS makes this OCSP request to find out if your credit card is valid right now or not. Or, anytime we do an online transaction, we use OCSP.
-
-\paragraph{Structure of a X.509 CRL (simplified)}
-A X.509 CRL contains:
-\begin{itemize}
-    \item version
-    \item signature algorithm
-    \item issuer
-    \item thisUpdate: when was the current update published.
-    \item nextUpdate: when will the next CRL be issued. We should always download the latest CRL.
-    \item userCertificate (associated with a revocationDate). We have many such entries: one for each revoked certificate.
-    \item CA digital signature, important to trust the CRL!
-\end{itemize}
-Often, when we want to be 100\% sure about the validity of a certificate and we're using CRL, we check \textbf{twice}:
-\begin{itemize}
-    \item The first time we check the current CRL, and take a look at the nextUpdate field.
-    \item Then we wait until the next CRL is published, according to the nextUpdate field, and we check that next CRL. This is just to make sure that the certificate wasn't revoked shortly after the publication of the first CRL.
-\end{itemize}
-This shows why OCSP is more practical. But again, the tradeoff is that CRL is able to demonstrate that a certificate was valid/invalid in any moment in time, while OCSP only tells us the current validity.
-
-\paragraph{Typical scenario}
+\paragraph{Example}
 The typical scenario for certificates is using OCSP in web to authenticate web servers. Bob, a user, connects to Alice's server in the web. In order for Bob to actually trust Alice, she needs to send her X.509 certificate. But in order for Bob to trust this certificate (that maybe he has never seen before), he wants to know \textbf{who issued it}. This is easy: the entity who issued the certificate is included in the certificate itself. This entity then uses its own certificate to authenticate, which points to another entity who issued it, and so on.
 
-This creates a \textbf{chain} of certificates, that ends when we reach a \textbf{root CA}: a highly trusted public entity that sits at the top of a public key infrastructure (PKI) hierarchy and issues digital certificates. These are the foundation of internet trust, and their certificates are pre-installed in our browsers and operating systems and must be simply trusted.
+This creates a \textbf{chain} of certificates, that ends when we reach a \textbf{root CA}, a highly trusted public entity that sits at the top of a public key infrastructure (PKI) hierarchy and issues digital certificates. These are the foundation of internet trust, and their certificates are pre-installed in our browsers and operating systems and must be simply trusted.
 
 So, when a certificate is checked, we go up a chain of certificates to verify that the other part is not lying, until we get to a certificate that is self-generated (root CA).
-
-Each authority that issues a certificates is called CA (Certificate Authority). What actually happens is: in order to validate Alice's certificate, Bob needs to see the public key of the CA above Alice, CA1, and in order to validate CA1 he will need the public key of CA2, until the root CA is reached.
-\paragraph{Performance}
-In the lab we already started measuring performances of algorithms. The performance does not depend on the RAM, but on the CPU, and especially on the architecture and instruction set: there are some optimized CPUs that perform these specific operations (encryption and decryption, for example RSA) way faster.
-
-Normally, on standard clients we don't have problems for performance. But on the \textbf{servers} that have to handle millions of clients simultaneously, it's a big matter. To speed up the servers, cryptographic accelerators (like some HSMs: Hardware Security Modules) were invented: special chips. Then, there are chips that perform other operations for the protocol itself: these are \textbf{special-purpose accelerators}.
-
-Which algorithms should we use, since there are many? There is the commercial national security algorithm suit (of USA) that recommends the following:
-\begin{itemize}
-    \item symmetric encryption: AES-256. if our application sends data in a channel with low bandwidth, it should use flow mode CTR, otherwise GCM
-
-    \item if we need to hash, use SHA-384 (the one with shorter digest is considered too dangerous).
-
-    \item key agreement: ECDH (subject to key in the middle, not authenticated) and ECMQV (elliptic curve)
-
-    \item for digital signature: ECDSA (not just DSA)
-
-    \item EC on the curve P-384.
-\end{itemize}
-If our app does not support these algorithms (i.e. if we have a legacy system), we should use:
-\begin{itemize}
-    \item DH-3072 for key agreement
-    \item RSA-3072 for key exchange and digital signature
-\end{itemize}
-New quantum-resistant algorithms  (post-quantum) are expected. AES is not affected by quantum computers, so we can expect to still keep using it.
-
-\clearpage
