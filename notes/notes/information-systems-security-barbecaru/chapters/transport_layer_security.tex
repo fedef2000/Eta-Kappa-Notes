@@ -1,0 +1,200 @@
+\chapter[]{Transport Layer Security (TLS)}
+
+\section{Overview of Transport Layer Security}
+\subsection{What is TLS?}
+Transport Layer Security (TLS) is the most widely used security protocol today, designed to create a secure communication channel over the Internet. It operates at the \textbf{transport} level, built directly on top of the Transmission Control Protocol (TCP). While standard TCP successfully provides a reliable byte stream abstraction between a client and a server, its segments are transmitted in plaintext and are not cryptographically protected. TLS bridges this gap by maintaining the byte stream abstraction while adding robust security services to protect the application data in transmission. The fundamental threat model of TLS assumes that the endpoints (the client and the server) are secure, but the attacker is situated somewhere within the network.
+
+\paragraph{Primary Security Goals: Authentication, Confidentiality, and Integrity}
+The primary objective of TLS is to establish a secure TCP transport channel from the client to the server by satisfying several security properties. These goals include:
+\begin{itemize}
+    \item \textbf{Authentication:} TLS allows the client to verify that it is connecting to the legitimate server, successfully defending against attackers attempting to impersonate the server. \textbf{Server authentication is mandatory} and is achieved using public-key X.509 certificates alongside asymmetric challenge-response mechanisms. \textit{Optionally}, the server can also require the client to authenticate itself during channel establishment, \textbf{but it is not mandatory}.
+    \item \textbf{Confidentiality:} TLS ensures message confidentiality, meaning that attackers sniffing the network data cannot understand the traffic exchanged between the client and the server.
+    \item \textbf{Integrity:} TLS ensures that attackers cannot tamper with, modify, or inject new data into the traffic stream.
+    \item \textbf{Data Authentication:} TLS ensures that the data are coming from who is claiming to send them.
+    \item \textbf{Reliability:} the protocol includes built-in protection against network-level manipulations, ensuring that attackers cannot successfully replay, reorder, filter, or cancel the exchanged traffic.
+\end{itemize}
+
+\subsection{TLS Architecture}
+
+TLS is not a single, monolithic protocol; rather, it is a structured architecture composed of multiple sub-protocols running in a layered stack. These sub-protocols operate on top of a reliable transport protocol, which in the context of the Internet is almost exclusively TCP.
+
+\addfigure[Block diagram of the TLS architecture showing the handshake, change cipher spec, alert, and application protocols running on top of the TLS record protocol, which runs over TCP and IP]{jpg/TLS_protocol_stack.jpg}{0.9}
+
+
+Within the TLS architecture, there are four primary sub-protocols that manage the lifecycle and security of the connection. Three of these are specific to the management of TLS itself, while the fourth is the payload data from the application layer.
+
+\paragraph{The Handshake Protocol}
+The Handshake Protocol is the most important one for this course and we are going to see it in details in the next section. It utilizes specific handshake messages to \textbf{establish the secure connection}, and it is responsible for authenticating the server (and optionally the client), negotiating the cryptographic algorithms to be used, and securely establishing the shared keys before any application data is transmitted.
+
+\paragraph{The Change Cipher Spec Protocol}
+The Change Cipher Spec Protocol is a very simple mechanism used to trigger the \textbf{change of algorithms and cryptographic keys} that will be used for message protection.
+
+\paragraph{The Alert Protocol (Teardown and Error Handling)}
+The Alert Protocol is responsible for gracefully \textbf{closing the secure channel} or indicating that a critical error has occurred. Alert messages can be invoked naturally by the application when it wishes to close the connection, or they can be triggered due to an error.
+
+\paragraph{The Record Protocol}
+The TLS Record Protocol serves as the foundational layer of the TLS architecture. It provides the actual secure \textbf{container for all higher-level messages}. It specifies the exact format and procedures used to cryptographically protect application data, handshake messages, alert messages, and change cipher spec messages before they are passed down to TCP for transmission.
+
+
+\subsection{Key Generation and Derivation}
+
+To establish a secure channel, the client and server must independently derive identical symmetric keys without ever transmitting those final keys over the insecure network. This is achieved through a multi-step derivation process based on key components: the premaster secret, a pseudo random function and the master secret.
+
+\paragraph{The Premaster Secret}
+The foundation of the entire key derivation process is the premaster secret (PS). The PS is established using either RSA or Diffie-Hellman.
+We are going to see later how the two algorithms derive and use premaster secret but, at the end of an exchange both client and server will have this random sequence of bytes that is used to compute the master secret.
+
+\paragraph{The Pseudo-Random Function (PRF)}
+Once the premaster secret is established, it is combined with two 256-bit random numbers that were exchanged at the very beginning of the handshake: the "client random" ($R_c$) and the "server random" ($R_s$).
+
+\paragraph{The Master Secret}
+Using the Pseudo-Random Function (PRF), both the client and the server independently map the Premaster secret, $R_c$, and $R_s$ into a new shared value known as the master secret.
+
+\paragraph{Deriving Symmetric Keys and Initialization Vectors (IVs)}
+In the final step, the client and server perform another operation using the PRF. Taking the master secret as the base, and once again incorporating the client random and server random, they derive the final working keys.
+
+To ensure a high level of security, TLS enforces the use of distinct keys for encryption and authentication (MAC), as well as distinct keys for the client-to-server direction and the server-to-client direction. From this derivation, \textbf{four symmetric keys} and two Initialization Vectors (IVs) are generated:
+\begin{itemize}
+    \item \textbf{Two encryption keys} ($K_{enc}c$ and $K_{enc}s$): One key dedicated to encrypting messages sent from the client to the server, and a separate key for encrypting messages from the server to the client.
+    \item \textbf{Two MAC keys} ($K_{IA}c$ and $K_{IA}s$): One key dedicated to calculating the MAC for client-to-server messages, and another for server-to-client messages.
+    \item \textbf{Two Initialization Vectors}: Required as inputs for symmetric block encryption, with one IV designated for each side of the communication.
+\end{itemize}
+
+At the end of this derivation, both the client and the server independently possess all four symmetric keys and IVs.
+
+\addfigure[the derivation of symmetric keys and IVs, based on the pre-master, a PRF and the master secret]{/png/TLS-MS.png}{0.8}
+
+
+\section{The TLS Handshake Protocol in Detail}
+
+\subsection{Phase 1: Security Parameter Negotiation}
+
+\paragraph{ClientHello and ServerHello Messages}
+The TLS handshake begins with the exchange of Hello messages. The client initiates the connection by sending a \texttt{ClientHello} message, which includes a 256-bit random number known as the "client random" ($R_c$), and a list of its supported cryptographic algorithms, organized into cipher suites. In response, the server sends a \texttt{ServerHello} message, which contains a 256-bit "server random" ($R_s$) and the specific cipher suite the server has selected from the client's proposed list.
+
+\paragraph{Exchange of Random Numbers (Client and Server Randoms)}
+The exchange of the client random ($R_c$) and server random ($R_s$) is a critical security measure. These random numbers are freshly generated for every single TLS connection. Their primary function is to prevent replay attacks. By incorporating these unique values into the subsequent key derivation process, TLS ensures that the cryptographic parameters of each session remain entirely unique, even if the exact same client and server communicate multiple times.
+
+\addfigure[]{/png/TLS-1.png}{0.4}
+
+\subsection{Phase 2: validation of X.509v3 certificate}
+
+\paragraph{Server Certificate Exchange and Validation}
+Following the Hello messages, the server must prove its identity by sending its X.509v3 certificate to the client. This certificate contains the server's identity and its public key, signed by a trusted Certificate Authority (CA).
+The client is then responsible for validating this certificate, by verifying the digital signature within the certificate, checking for revocation, and ensuring the certificate has not expired. Once validated, the client officially knows the server's public key. However, at this stage, the client \textbf{is not yet certain} it is talking to the legitimate server, because certificates are public and anyone could theoretically present a copied certificate.
+
+\addfigure[]{/png/TLS-2.png}{0.4}
+
+\subsection{Phase 3: Exchanging the Premaster Secret (RSA vs. Diffie-Hellman)}
+To definitively prove the server's identity and to establish a shared secret, the handshake progresses to exchanging the premaster secret (PS). This step guarantees that the server actually owns the private key ($K_{priv}$) corresponding to the public key ($K_{pub}$) listed in its certificate. It is designed so that an eavesdropping attacker cannot learn the premaster secret. There are two primary approaches for this exchange: RSA or Diffie-Hellman.
+
+\paragraph{RSA}
+In the RSA approach, the client randomly generates the premaster secret. The client then encrypts this PS using the server's public key and transmits it over the network. The server receives the ciphertext and decrypts the PS using its private key. Because only the legitimate server possesses the correct private key, this act of decryption successfully proves the server's identity and allows both parties to share the PS safely.
+
+\addfigure[]{/png/TLS-RSA.png}{0.4}
+
+\paragraph{Diffie-Hellman}
+Alternatively, in the Diffie-Hellman (DHE/ECDHE) approach, the server generates a secret value $y$, computes $g^y \bmod p$, and signs this result with its private key. It then sends the signed message to the client. The client verifies the signature to confirm the server's identity. The client then generates its own secret $x$ and computes $g^x \bmod p$. Using the exchanged values, both the client and server mathematically derive the shared premaster secret: $g^{xy} \bmod p$. Due to the mathematical properties of the Diffie-Hellman exchange, an attacker observing the traffic cannot compute $g^{xy} \bmod p$.
+
+\addfigure[]{/png/TLS-DH.png}{0.4}
+
+\subsection{Phase 4: Deriving the Master Secret and Symmetric Keys}
+Once the premaster secret is shared, both the client and server utilize a Pseudo-Random Function (PRF) to derive a master secret. This calculation takes the PS, random client ($R_c$), and random server($R_s$) as inputs.
+
+From this master secret, along with $R_c$ and $R_s$, both sides independently derive \textbf{four symmetric keys} and two initialization vectors (IVs). These consist of two encryption keys ($K_{enc}c$ and $K_{enc}s$) used for encrypting messages from the client-to-server and server-to-client, respectively, as well as two MAC keys ($K_{IA}c$ and $K_{IA}s$) used for calculating message authentication codes in both directions. Both the client and the server now possess all four keys and IVs.
+
+\addfigure[]{/png/TLS-4.png}{0.4}
+
+
+\subsection{Phase 5: final security check}
+Before transitioning to sending application data, the server and client perform a final security check by exchanging MACs computed over all the messages of the TLS handshake sent so far. This step protects the integrity of the TLS handshake. If an attacker tampered with any of the previous handshake messages, the computed MACs will not match, and the connection will be immediately aborted with no keys saved. Furthermore, if the server was an impostor, it would not have been able to decrypt the PS and derive the correct MAC key ($K_{IA}s$), making this exchange the final, definitive proof of server authentication.
+
+\addfigure[]{/png/TLS-5.png}{0.4}
+
+\subsection{Phase 6: Message exchange}
+With the handshake successfully completed, application messages can be sent securely. TLS protects against attacks that attempt to replay records from entirely different past connections because every handshake uses a different $R_c$ and $R_s$, guaranteeing that the symmetric keys are completely unique for every TLS connection.
+To prevent an attacker from replaying, reordering, or filtering records, the TLS record protocol integrates sequence numbers into the encrypted records. Because this sequence number is included in the MAC calculation, if an attacker attempts to replay or filter a record, the expected sequence number at the receiving end will be incorrect. Consequently, the MAC verification will fail, instantly alerting the system to the attack.
+
+\addfigure[]{/png/TLS-6.png}{0.4}
+
+
+\section{Advanced TLS Concepts}
+
+
+\subsection{TLS Sequence Numbers vs. TCP Sequence Numbers}
+A common point of confusion is the relationship between TLS sequence numbers and TCP sequence numbers. It is crucial to understand that TLS sequence numbers are entirely distinct from TCP sequence numbers.
+
+While TCP sequence numbers track individual bytes to ensure reliable network delivery and are transmitted unencrypted, TLS sequence numbers count TLS records and are strictly used for security. Specifically, TLS sequence numbers protect against replay, reordering, and cancellation or filtering attacks.
+
+Unlike TCP sequence numbers, TLS sequence numbers are \textbf{never explicitly transmitted} over the wire. Instead, both the client and the server implicitly maintain two internal sequence numbers: one tracking the data sent, and another tracking the data received. These 64-bit sequence numbers are initialized to $0$ for a new connection and are incremented for each TLS record sent or received, with a strict maximum limit of $2^{64}-1$.
+
+Because the sequence number is a mandatory input into the MAC computation, any attempt by an attacker to replay an old record, reorder records, or drop a record will cause the implicit sequence numbers at the sender and receiver to fall out of sync. If the receiver attempts to verify the MAC of an incoming record and it fails to match the expected calculation based on the current sequence number, the TLS record layer assumes a malicious attack is underway. In response, the current TLS session is immediately terminated, and all cryptographic keys are permanently discarded.
+
+\subsection{Sessions vs. Connections}
+
+\paragraph{TLS Session}
+A TLS session is defined as a logical association between a client and a server. This session is created during the TLS handshake protocol. The primary purpose of a session is to define and store a set of cryptographic parameters that can be common across several individual connections (e.g, X.509v3 peer certificates, the algorithms used for encryption and MAC, and the master secret)
+
+\paragraph{TLS Connection}
+In contrast, a TLS connection is a transient, short-lived communication channel established between the client and the server. Every TLS connection must be associated with one specific TLS session, making the relationship a many-to-one mapping where multiple TLS connections may share the same TLS session to improve efficiency. While the overarching session provides the master secret, specific cryptographic parameters must be uniquely negotiated for each individual TLS connection. These connection-specific parameters include the server and client sequence numbers, the server and client random numbers, and the final derived symmetric cryptographic keys and initialization vectors (IVs) utilized for data protection.
+
+\addfigure[the relationship between TLS sessions and multiple TLS connections]{/png/TLS-SC.png}{0.7}
+
+\paragraph{The Computational Cost of Full Handshakes}
+The distinction between sessions and connections exists primarily to optimize performance. A typical web transaction using HTTP/1.0 or early HTTP/1.1 often involves opening a connection, requesting a resource, receiving the resource, and then immediately closing the connection. Rendering a single web page often requires repeating this cycle numerous times to fetch various assets, such as images or media files.
+
+If the client and server were required to perform a full TLS handshake—involving public key cryptographic operations and parameter negotiation—for every single one of these brief connections, the computational load on both machines would become unacceptably high.
+
+\paragraph{Session Resumption Techniques}
+To avoid the heavy computational cost of re-negotiating cryptographic parameters for every transient connection, TLS implements session resumption techniques.
+
+Historically, this was achieved using Session IDs. When a server successfully establishes a new session, it can store the derived master secret alongside a unique session identifier for a specific period of time. If the client subsequently opens a new TLS connection and provides a valid, previously established Session id, the server may opt to perform a session resumption rather than a full handshake.
+
+If the server agrees to the resumption, it responds with the same Session id, confirming that the new connection is now part of the existing logical session. During this abbreviated handshake, the computationally expensive peer authentication and asymmetric key exchange phases are entirely skipped. Instead, fresh symmetric keys are derived based on the previously negotiated and stored master secret combined with newly generated client and server random numbers. It is important to note that a server retains the right to reject a Session id and start a full handshake.
+
+\subsection{Forward Secrecy}
+
+In standard public-key cryptography, if a server possesses an X.509 certificate that is valid for both signature and encryption, the corresponding private key can be used simultaneously for peer authentication (by creating a digital signature) and for key exchange (by asymmetrically decrypting a session key provided by the client).
+
+However, this creates a severe long-term vulnerability. If a passive adversary intercepts and stores all the encrypted traffic passing over the network, and at some point in the future manages to compromise or discover the server's long-term private key, that adversary will be able to decrypt all the stored \textbf{past traffic}, as well as \textbf{any present or future traffic}.
+
+Perfect forward secrecy is a cryptographic property designed to neutralize this threat. When a protocol provides perfect forward secrecy, the compromise of a server's long-term asymmetric private key only compromises current and potentially future traffic, \textbf{but not the one exchanged in the past}.
+
+\paragraph{The Vulnerability of Static RSA Key Exchange}
+In an RSA key exchange, the adversary simply records the client random ($R_c$), the server random ($R_s$), and the premaster secret (PS) that was encrypted with the server's public key. Because the PS is protected only by the server's static long-term public key, if the adversary later compromises the server's private key, they can effortlessly decrypt the PS. With the PS, $R_c$, and $R_s$ in hand, the adversary can independently derive the master secret and all subsequent symmetric keys used for encryption and MAC generation, effectively stripping the TLS records of all protection.
+
+\paragraph{Achieving Forward Secrecy with Ephemeral Diffie-Hellman (DHE/ECDHE)}
+To achieve forward secrecy, TLS must utilize "ephemeral" mechanisms for key exchange. When the premaster secret is agreed upon using Ephemeral Diffie-Hellman (DHE), perfect forward secrecy is successfully achieved.
+
+In this model, a completely new, temporary Diffie-Hellman one-time key (a short-lived session key) is generated on the fly for the exchange. To ensure authenticity and prevent Man-In-The-Middle attacks, the server's ephemeral DH public exponent must be signed. Crucially, the server's long-term private key is used \textit{only} for generating this signature, not for encrypting the secret itself.
+
+\subsection{TLS Integration with Applications}
+
+Because TLS is built directly on top of TCP, it is highly versatile and easily applicable to virtually all protocols based on TCP. Common application-layer protocols that leverage TLS include HTTP, SMTP, NNTP, FTP, and TELNET. The most famous and widespread example is secure HTTP (HTTPS), which traditionally operates over TCP port 443.
+
+\paragraph{TLS Activation Methods: TLS-then-proto vs. Proto-then-TLS (STARTTLS)}
+
+Because any TCP-based protocol can be executed with or without TLS, the client and server require a mechanism to signal the use and activation of TLS. There are two primary methodologies used to activate TLS:
+
+\textbf{1. TLS-then-proto (e.g., HTTP over TLS)}
+In this method, the TLS secure channel is established immediately upon connection, and only then is the specific application protocol run over the secured channel. This is typically signaled to the client by utilizing new protocol names in URLs (for example, replacing \texttt{http} with \texttt{https}). Consequently, the client connects to a separate, dedicated TLS port on which the server is running a TLS process. For instance, a web server will expect unprotected HTTP requests on port 80, but will immediately perform a TLS handshake upon receiving a TCP connection on port 443. To enforce security, a server can utilize HTTP redirects: if a client establishes an unencrypted connection to port 80, the server returns a 30x error, triggering a redirection to the corresponding HTTPS URL.
+
+\textbf{2. Proto-then-TLS (STARTTLS)}
+For certain protocols—particularly those like IMAP or POP3 where HTTP-style redirection is not supported—an alternative mechanism called \texttt{STARTTLS} is utilized. In the proto-then-TLS approach, the client initially establishes an unencrypted TCP connection and starts communicating using the standard application-level protocol. When a secure channel is required, the server sends a specific keyword, \texttt{STARTTLS}, over this unencrypted connection. Upon receiving this keyword, the client suspends the application protocol and initiates a TLS handshake directly over the existing TCP connection. Once the TLS handshake is successfully completed and the channel is secure, the client restarts the application protocol, now protected by TLS.
+
+
+\subsection{The Effectiveness and Limitations of TLS}
+
+\paragraph{End-to-End Security Guarantees Against Network Attacks}
+Transport Layer Security is fundamentally designed to \textbf{provide end-to-end security}, establishing a secure communication channel directly between the two communicating endpoints. It guarantees authentication (whether single or mutual), data authentication, integrity, and confidentiality, but it is crucial to understand that these guarantees apply exclusively while the data is in transit inside the TLS communication channel. Notably, TLS does not provide non-repudiation services.
+
+Because the security is negotiated and maintained strictly between the endpoints, there is no need to trust the network intermediaries that physically route the packets. Even if an adversary positioned anywhere between the client and the server behaves maliciously, TLS successfully maintains the integrity and privacy of the secure communication channel.
+
+This architecture inherently defends against most lower-level network attacks. For example, consider an attacker on a local network attempting a Man-In-The-Middle (MITM) attack using ARP poisoning. The attacker will be completely unable to read the intercepted TLS messages because they do not possess the negotiated symmetric keys. Furthermore, they cannot subtly modify or maliciously delete specific messages without detection, as any tampering will cause the Message Authentication Code (MAC) to be incorrect upon evaluation at the destination endpoint.
+
+\paragraph{Vulnerabilities Outside the TLS Scope (Compromised Endpoints)}
+Despite its robust protection of data in transit, the end-to-end security model of TLS provides no help if one of the endpoints itself is malicious or compromised. The protocol assumes the integrity of the host machines.
+
+If one of the communicating parties—either the client system or the server software—has been infected by malware, the TLS protocol will effectively establish an encrypted channel directly with the malware software. In this scenario, the cryptography remains unbroken, but the data is compromised either before it is encrypted or immediately after it is decrypted.
+
+Another significant vulnerability lies not within the TLS protocol itself, but within the Public Key Infrastructure (PKI) it relies upon for authentication. A client might be tricked into communicating with a fake or "shadow" server if that malicious server presents a technically valid certificate. This failure occurs if a trusted Certificate Authority (CA) is compromised.
